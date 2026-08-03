@@ -69,6 +69,12 @@ export class BulletHellScene extends Phaser.Scene {
     const hitbox = this.config.rules.playerHitboxRadius;
     this.player.setCollideWorldBounds(true).setCircle(hitbox, Math.max(0, this.player.width / 2 - hitbox), Math.max(0, this.player.height / 2 - hitbox));
     this.cursors = this.input.keyboard!.createCursorKeys();
+    this.input.keyboard!.addCapture([
+      Phaser.Input.Keyboard.KeyCodes.UP,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    ]);
     this.keys = this.input.keyboard!.addKeys({ up:'W', down:'S', left:'A', right:'D', focus:'SHIFT', shoot:'Z', bomb:'X', pause:'P' }) as typeof this.keys;
     this.physics.add.overlap(this.playerShots, this.enemies, (shot, enemy) => this.hitEnemy(shot as Phaser.Types.Physics.Arcade.GameObjectWithBody, enemy as Phaser.Types.Physics.Arcade.GameObjectWithBody));
     this.physics.add.overlap(this.player, this.enemyBullets, (player, bullet) => this.hitPlayer(player as Phaser.Types.Physics.Arcade.GameObjectWithBody, bullet as Phaser.Types.Physics.Arcade.GameObjectWithBody));

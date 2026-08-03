@@ -4,7 +4,7 @@
     "id": "starfall-barrage",
     "title": "STARFALL BARRAGE",
     "subtitle": "두 개의 짧은 스테이지로 구성된 데이터 기반 탄막 슈팅 프로토타입",
-    "version": "0.5.0",
+    "version": "0.5.2",
     "defaultPlayer": "star_traveler"
   },
   "rules": {
@@ -59,7 +59,7 @@
     "nextDialogue": "다음 ›",
     "startBattle": "계속 ›",
     "dialogueHint": "Z · Space · Enter · 클릭",
-    "retryHint": "Z · Space · Enter로 다시 시작",
+    "retryHint": "점수를 확인한 뒤 아래 버튼을 선택하세요",
     "title": {
       "kicker": "PROTOCOL DEMONSTRATION",
       "heading": "별의 문에 도전할 여행자를 선택하세요",
