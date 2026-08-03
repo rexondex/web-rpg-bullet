@@ -15,9 +15,14 @@
     <section class="cabinet" aria-label="탄막 슈팅 게임">
       <div class="playfield">
         <div id="game"></div>
+        <div class="stage-label"><span id="stage-progress">STAGE 1 / 2</span><strong id="stage-name">달빛 초원</strong></div>
         <div id="boss-hud" class="boss-hud hidden"><div><strong id="boss-name"></strong><span id="boss-time">0.0</span></div><small id="boss-phase"></small><div class="boss-meter"><i id="boss-hp"></i></div></div>
         <div id="stage-message" class="stage-message hidden"><strong id="message-title"></strong><span id="message-text"></span></div>
         <div id="pause-layer" class="pause-layer hidden"><strong>PAUSED</strong><span>P 또는 버튼으로 계속</span></div>
+        <div id="dialogue" class="dialogue hidden" data-side="left" role="dialog" aria-live="polite">
+          <img id="dialogue-portrait" class="hidden" alt="" />
+          <div class="dialogue-box"><span id="dialogue-speaker"></span><p id="dialogue-text"></p><button id="dialogue-next" type="button">다음 ›</button></div>
+        </div>
         <div id="mobile-controls" class="mobile-controls">
           <div class="dpad"><button data-key="up">▲</button><button data-key="left">◀</button><button data-key="down">▼</button><button data-key="right">▶</button></div>
           <div class="mobile-actions"><button data-key="focus">저속</button><button data-key="shoot">SHOT</button><button class="bomb" data-key="bomb">BOMB</button></div>

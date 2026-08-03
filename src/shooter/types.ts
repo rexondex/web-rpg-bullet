@@ -28,6 +28,27 @@ export interface WaveEntry {
   spacing?: number;
 }
 
+export interface ShooterStage {
+  id: string;
+  name: string;
+  subtitle: string;
+  background: string;
+  width: number;
+  height: number;
+  waves: WaveEntry[];
+  introDialogue?: string;
+  clearDialogue?: string;
+  bossDialogue?: string;
+  hasBoss?: boolean;
+}
+
+export interface ShooterDialogueLine {
+  speaker: string;
+  text: string;
+  portrait?: string;
+  side?: 'left' | 'right';
+}
+
 export interface BossPhase {
   name: string;
   hp: number;
@@ -38,14 +59,8 @@ export interface BossPhase {
 export interface ShooterProtocol {
   protocolVersion: 1;
   game: { id: string; title: string; subtitle: string; version: string };
-  stage: {
-    name: string;
-    background: string;
-    width: number;
-    height: number;
-    waves: WaveEntry[];
-    bossAtMs: number;
-  };
+  stages: ShooterStage[];
+  dialogues: Record<string, ShooterDialogueLine[]>;
   player: {
     name: string;
     texture: string;
@@ -75,4 +90,12 @@ export interface ShooterState {
   bossMaxHp: number;
   bossTime: number;
   paused: boolean;
+  stageNumber: number;
+  stageCount: number;
+  stageName: string;
+}
+
+export interface DialogueRequest {
+  lines: ShooterDialogueLine[];
+  done: () => void;
 }

@@ -23,6 +23,13 @@ npm run dev
 
 모바일·터치 환경에서는 화면 아래의 가상 버튼을 사용할 수 있습니다.
 
+## 프로토타입 구성
+
+- 약 2~4분 분량의 짧은 스테이지 2개
+- 오프닝, 스테이지 전환, 보스 조우, 클리어 대화
+- 보스 1명과 스펠 페이즈 2개
+- JSON에서 대사, 화자, 좌우 배치, 선택적 스탠딩 이미지 교체
+
 ## 예제 기능
 
 - 오브젝트 풀을 이용한 최대 900개 적 탄환 관리
@@ -36,9 +43,10 @@ npm run dev
 
 ## 콘텐츠 편집
 
-탄막 콘텐츠는 [`public/game-data/shooter.json`](public/game-data/shooter.json)에 있습니다.
+탄막과 대화 콘텐츠는 [`public/game-data/shooter.json`](public/game-data/shooter.json)에 있습니다.
 
-- `stage.waves`: 등장 시각, 적 종류, 수, 진형
+- `stages[].waves`: 등장 시각, 적 종류, 수, 진형
+- `dialogues`: 화자, 대사, 스탠딩 에셋 ID, 좌우 배치
 - `enemies`: 체력, 이동 속도, 점수, 기본 탄막
 - `boss.phases`: 페이즈별 체력, 제한 시간, 복수 탄막
 - `assets`: 플레이어, 보스, 배경 이미지 경로

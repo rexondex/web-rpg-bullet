@@ -16,6 +16,7 @@ export class BulletHellScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!: Record<'up'|'down'|'left'|'right'|'focus'|'shoot'|'bomb'|'pause', Phaser.Input.Keyboard.Key>;
   private stageStartedAt = 0;
+  private currentStageIndex = 0;
   private lastShot = 0;
   private invulnerableUntil = 0;
   private score = 0;
@@ -27,6 +28,10 @@ export class BulletHellScene extends Phaser.Scene {
   private combo = 0;
   private comboUntil = 0;
   private waveIndex = 0;
+  private stageTransitioning = false;
+  private bossTriggered = false;
+  private cinematic = false;
+  private stageBackground!: Phaser.GameObjects.Image;
   private boss: EnemySprite | null = null;
   private bossPhase = -1;
   private bossPhaseHp = 0;
@@ -60,14 +65,13 @@ export class BulletHellScene extends Phaser.Scene {
     this.lives = this.config.player.lives;
     this.bombs = this.config.player.bombs;
     this.highScore = Number(localStorage.getItem(`${this.config.game.id}:high-score`) ?? 0);
-    this.stageStartedAt = this.time.now;
-    this.events.emit('message', { title: this.config.stage.name, text: 'STAGE 1 · 별의 문을 돌파하라', duration: 1800 });
+    this.time.delayedCall(120, () => this.startStage(0));
     this.emitState();
   }
 
   update(time: number, delta: number): void {
     if (Phaser.Input.Keyboard.JustDown(this.keys.pause) && !this.ended) this.togglePause();
-    if (this.isPaused || this.ended) return;
+    if (this.isPaused || this.ended || this.cinematic) return;
     this.updatePlayer(time);
     this.updateStage(time);
     this.updateEnemies(time, delta);
@@ -92,12 +96,40 @@ export class BulletHellScene extends Phaser.Scene {
   }
 
   private updateStage(time: number): void {
+    const stage = this.config.stages[this.currentStageIndex];
     const elapsed = time - this.stageStartedAt;
-    while (this.waveIndex < this.config.stage.waves.length && elapsed >= this.config.stage.waves[this.waveIndex].atMs) {
-      this.spawnWave(this.config.stage.waves[this.waveIndex]);
+    while (this.waveIndex < stage.waves.length && elapsed >= stage.waves[this.waveIndex].atMs) {
+      this.spawnWave(stage.waves[this.waveIndex]);
       this.waveIndex += 1;
     }
-    if (!this.boss && elapsed >= this.config.stage.bossAtMs && !this.enemies.getChildren().some(child => child.active)) this.spawnBoss(time);
+    const enemiesRemain = this.enemies.getChildren().some(child => child.active);
+    if (this.waveIndex < stage.waves.length || enemiesRemain || this.stageTransitioning) return;
+    if (stage.hasBoss) {
+      if (this.bossTriggered) return;
+      this.bossTriggered = true; this.stageTransitioning = true;
+      this.beginDialogue(stage.bossDialogue, () => { this.stageTransitioning = false; this.spawnBoss(this.time.now); });
+      return;
+    }
+    this.stageTransitioning = true;
+    this.beginDialogue(stage.clearDialogue, () => this.startStage(this.currentStageIndex + 1));
+  }
+
+  private startStage(index: number): void {
+    if (index >= this.config.stages.length) { this.clearStage(); return; }
+    const stage = this.config.stages[index];
+    this.currentStageIndex = index; this.waveIndex = 0; this.bossTriggered = false; this.stageTransitioning = false;
+    this.stageBackground.setTexture(stage.background).setDisplaySize(PLAY_WIDTH, PLAY_HEIGHT);
+    this.player.setPosition(PLAY_WIDTH / 2, PLAY_HEIGHT - 82);
+    this.enemyBullets.clear(true, true); this.playerShots.clear(true, true);
+    this.events.emit('message', { title: stage.name, text: stage.subtitle, duration: 1800 });
+    this.beginDialogue(stage.introDialogue, () => { this.stageStartedAt = this.time.now; });
+  }
+
+  private beginDialogue(dialogueId: string | undefined, done: () => void): void {
+    const lines = dialogueId ? this.config.dialogues[dialogueId] : undefined;
+    if (!lines?.length) { done(); return; }
+    this.cinematic = true; this.physics.world.pause();
+    this.events.emit('dialogue', { lines, done:() => { this.cinematic = false; if (!this.isPaused) this.physics.world.resume(); done(); } });
   }
 
   private spawnWave(wave: WaveEntry): void {
@@ -295,7 +327,9 @@ export class BulletHellScene extends Phaser.Scene {
     if (this.ended) return;
     this.ended = true; this.enemyBullets.clear(true, true); this.boss?.disableBody(true, true);
     this.addScore(this.lives * 30000 + this.bombs * 10000);
-    this.events.emit('result', { clear:true, score:this.score, graze:this.graze, highScore:this.highScore });
+    const dialogue = this.config.stages[this.currentStageIndex]?.clearDialogue;
+    this.ended = false;
+    this.beginDialogue(dialogue, () => { this.ended = true; this.events.emit('result', { clear:true, score:this.score, graze:this.graze, highScore:this.highScore }); });
   }
 
   private gameOver(): void {
@@ -315,12 +349,13 @@ export class BulletHellScene extends Phaser.Scene {
 
   private emitState(): void {
     const phase = this.config.boss.phases[this.bossPhase];
-    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused } satisfies ShooterState);
+    const stage = this.config.stages[this.currentStageIndex];
+    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '' } satisfies ShooterState);
   }
 
   private drawStage(): void {
-    const background = this.add.image(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, this.config.stage.background).setDisplaySize(PLAY_WIDTH, PLAY_HEIGHT).setAlpha(.42).setDepth(-5);
-    this.tweens.add({ targets:background, y:PLAY_HEIGHT / 2 + 18, duration:5000, yoyo:true, repeat:-1, ease:'Sine.InOut' });
+    this.stageBackground = this.add.image(PLAY_WIDTH / 2, PLAY_HEIGHT / 2, this.config.stages[0].background).setDisplaySize(PLAY_WIDTH, PLAY_HEIGHT).setAlpha(.42).setDepth(-5);
+    this.tweens.add({ targets:this.stageBackground, y:PLAY_HEIGHT / 2 + 18, duration:5000, yoyo:true, repeat:-1, ease:'Sine.InOut' });
     const overlay = this.add.graphics().setDepth(-4); overlay.fillGradientStyle(0x071125, 0x071125, 0x101633, 0x101633, .25, .25, .9, .9).fillRect(0, 0, PLAY_WIDTH, PLAY_HEIGHT);
     for (let i = 0; i < 70; i += 1) { const star = this.add.circle(Phaser.Math.Between(5, PLAY_WIDTH - 5), Phaser.Math.Between(0, PLAY_HEIGHT), Phaser.Math.Between(1, 2), 0xbceaff, Phaser.Math.FloatBetween(.15, .6)).setDepth(-3); this.tweens.add({ targets:star, alpha:.05, duration:Phaser.Math.Between(500, 1600), yoyo:true, repeat:-1 }); }
     this.add.rectangle(PLAY_WIDTH - 1, PLAY_HEIGHT / 2, 2, PLAY_HEIGHT, 0x8defff, .4).setDepth(20);

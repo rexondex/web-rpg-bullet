@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import './style.css';
 import { BulletHellScene } from './shooter/BulletHellScene';
 import { loadShooterContent, ShooterContentError } from './shooter/ShooterContent';
-import type { ShooterState } from './shooter/types';
+import type { DialogueRequest, ShooterState } from './shooter/types';
 
 const $ = <T extends HTMLElement>(selector: string): T => document.querySelector<T>(selector)!;
 let scene: BulletHellScene;
@@ -11,6 +11,7 @@ let messageTimer = 0;
 async function boot(): Promise<void> {
   try {
     const config = await loadShooterContent();
+    assetManifest = config.assets;
     $('#game-title').textContent = config.game.title;
     $('#game-subtitle').textContent = config.game.subtitle;
     scene = new BulletHellScene(config);
@@ -29,6 +30,7 @@ async function boot(): Promise<void> {
       scene.events.on('state', renderState);
       scene.events.on('message', showMessage);
       scene.events.on('result', showResult);
+      scene.events.on('dialogue', showDialogue);
       scene.events.on('pause', (paused: boolean) => $('#pause-layer').classList.toggle('hidden', !paused));
     });
     bindControls();
@@ -49,6 +51,8 @@ function renderState(state: ShooterState): void {
   $('#power-bar').style.width = `${state.power / 4 * 100}%`;
   $('#graze').textContent = state.graze.toLocaleString();
   $('#combo').textContent = state.combo > 1 ? `×${state.combo}` : '—';
+  $('#stage-progress').textContent = `STAGE ${state.stageNumber} / ${state.stageCount}`;
+  $('#stage-name').textContent = state.stageName;
   const bossVisible = Boolean(state.bossName);
   $('#boss-hud').classList.toggle('hidden', !bossVisible);
   if (bossVisible) {
@@ -58,6 +62,35 @@ function renderState(state: ShooterState): void {
     $('#boss-time').textContent = (state.bossTime / 1000).toFixed(1);
   }
 }
+
+function showDialogue(request: DialogueRequest): void {
+  const panel = $('#dialogue');
+  const portrait = $('#dialogue-portrait') as HTMLImageElement;
+  let index = 0;
+  const render = (): void => {
+    const line = request.lines[index];
+    $('#dialogue-speaker').textContent = line.speaker;
+    $('#dialogue-text').textContent = line.text;
+    $('#dialogue-next').textContent = index === request.lines.length - 1 ? '전투 시작' : '다음 ›';
+    panel.dataset.side = line.side ?? 'left';
+    const source = line.portrait ? sceneConfigAsset(line.portrait) : '';
+    if (source) { portrait.src = source; portrait.alt = `${line.speaker} 스탠딩 일러스트`; portrait.classList.remove('hidden'); }
+    else { portrait.removeAttribute('src'); portrait.classList.add('hidden'); }
+  };
+  const advance = (): void => {
+    index += 1;
+    if (index < request.lines.length) { render(); return; }
+    panel.classList.add('hidden');
+    $('#dialogue-next').onclick = null;
+    request.done();
+  };
+  $('#dialogue-next').onclick = advance;
+  panel.classList.remove('hidden');
+  render();
+}
+
+let assetManifest: Record<string, string> = {};
+function sceneConfigAsset(id: string): string { return assetManifest[id] ?? ''; }
 
 function showMessage(message: { title:string; text:string; duration:number }): void {
   window.clearTimeout(messageTimer);
