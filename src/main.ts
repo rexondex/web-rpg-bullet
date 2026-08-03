@@ -139,7 +139,12 @@ function showResult(result: { clear:boolean; score:number; graze:number; highSco
 }
 
 function bindControls(): void {
-  const restart = (): void => { $('#result-screen').classList.add('hidden'); scene.restart(); };
+  const restart = (): void => {
+    window.clearTimeout(messageTimer);
+    dialogueAdvance = null;
+    ['#result-screen','#stage-message','#pause-layer','#dialogue'].forEach(selector => $(selector).classList.add('hidden'));
+    scene.restart();
+  };
   $('#restart').onclick = restart;
   $('#pause-button').onclick = () => scene.togglePause();
   document.addEventListener('visibilitychange', () => { if (document.hidden) scene.pauseForVisibility(); });
@@ -149,7 +154,7 @@ function bindControls(): void {
     if (event.repeat || !advanceKey) return;
     if (dialogueAdvance) { event.preventDefault(); event.stopImmediatePropagation(); dialogueAdvance(); return; }
     if (!$('#result-screen').classList.contains('hidden')) { event.preventDefault(); event.stopImmediatePropagation(); restart(); }
-  }, true);
+  });
   const keyMap: Record<string, { key:string; code:string }> = {
     up:{key:'ArrowUp',code:'ArrowUp'}, down:{key:'ArrowDown',code:'ArrowDown'}, left:{key:'ArrowLeft',code:'ArrowLeft'}, right:{key:'ArrowRight',code:'ArrowRight'},
     shoot:{key:'z',code:'KeyZ'}, focus:{key:'Shift',code:'ShiftLeft'}, bomb:{key:'x',code:'KeyX'},
