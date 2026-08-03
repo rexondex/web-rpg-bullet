@@ -177,8 +177,9 @@ export class BulletHellScene extends Phaser.Scene {
   private beginDialogue(dialogueId: string | undefined, done: () => void): void {
     const lines = dialogueId ? this.config.dialogues[dialogueId] : undefined;
     if (!lines?.length) { done(); return; }
+    let completed = false;
     this.cinematic = true; this.physics.world.pause();
-    this.events.emit('dialogue', { lines, done:() => { this.cinematic = false; if (!this.isPaused) this.physics.world.resume(); done(); } });
+    this.events.emit('dialogue', { lines, done:() => { if(completed)return;completed=true;this.cinematic = false; if (!this.isPaused) this.physics.world.resume(); done(); } });
   }
 
   private spawnWave(wave: WaveEntry): void {
@@ -205,7 +206,8 @@ export class BulletHellScene extends Phaser.Scene {
       const enemy = child as EnemySprite;
       if (!enemy.active) return;
       if (enemy === this.boss) { this.updateBoss(enemy, time, delta); return; }
-      const definition = enemy.definition!;
+      const definition = enemy.definition;
+      if (!definition) { enemy.disableBody(true, true); return; }
       if (enemy.y > 90 && enemy.y < 410 && time - (enemy.firedAt ?? 0) >= definition.pattern.intervalMs) {
         enemy.firedAt = time;
         this.firePattern(enemy.x, enemy.y, definition.pattern, time, enemy.angleSeed ?? 0);
@@ -216,6 +218,8 @@ export class BulletHellScene extends Phaser.Scene {
   }
 
   private spawnBoss(time: number): void {
+    if (this.boss?.active || this.ended) return;
+    if (!this.isPaused && !this.cinematic) this.physics.world.resume();
     const movement = this.config.boss.movement;
     const boss = this.enemies.get(movement.spawnX, movement.spawnY, this.config.boss.texture) as EnemySprite | null;
     if (!boss) return;
