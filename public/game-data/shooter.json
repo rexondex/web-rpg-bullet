@@ -57,6 +57,8 @@
     "retry": "다시 도전",
     "nextDialogue": "다음 ›",
     "startBattle": "계속 ›",
+    "dialogueHint": "Z · Space · Enter · 클릭",
+    "retryHint": "Z · Space · Enter로 다시 시작",
     "messages": {
       "miss": "MISS",
       "respawn": "남은 기체로 복귀합니다",

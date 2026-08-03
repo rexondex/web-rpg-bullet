@@ -9,6 +9,7 @@ let scene: BulletHellScene;
 let messageTimer = 0;
 let maxPower = 1;
 let uiText: Awaited<ReturnType<typeof loadShooterContent>>['ui'];
+let dialogueAdvance: (() => void) | null = null;
 
 async function boot(): Promise<void> {
   try {
@@ -34,6 +35,8 @@ async function boot(): Promise<void> {
     $('#mobile-shot').textContent = config.ui.mobile.shot;
     $('#mobile-bomb').textContent = config.ui.mobile.bomb;
     $('#restart').textContent = config.ui.retry;
+    $('#dialogue-hint').textContent = config.ui.dialogueHint;
+    $('#retry-hint').textContent = config.ui.retryHint;
     $('.playfield').style.aspectRatio = `${config.rules.playfield.width} / ${config.rules.playfield.height}`;
     scene = new BulletHellScene(config);
     const game = new Phaser.Game({
@@ -92,6 +95,7 @@ function showDialogue(request: DialogueRequest): void {
     const line = request.lines[index];
     $('#dialogue-speaker').textContent = line.speaker;
     $('#dialogue-text').textContent = line.text;
+    $('#dialogue-progress').textContent = `${index + 1} / ${request.lines.length}`;
     $('#dialogue-next').textContent = index === request.lines.length - 1 ? uiText.startBattle : uiText.nextDialogue;
     panel.dataset.side = line.side ?? 'left';
     const source = line.portrait ? sceneConfigAsset(line.portrait) : '';
@@ -103,9 +107,13 @@ function showDialogue(request: DialogueRequest): void {
     if (index < request.lines.length) { render(); return; }
     panel.classList.add('hidden');
     $('#dialogue-next').onclick = null;
+    panel.onclick = null;
+    dialogueAdvance = null;
     request.done();
   };
-  $('#dialogue-next').onclick = advance;
+  dialogueAdvance = advance;
+  $('#dialogue-next').onclick = event => { event.stopPropagation(); advance(); };
+  panel.onclick = event => { if (!(event.target as HTMLElement).closest('button')) advance(); };
   panel.classList.remove('hidden');
   render();
 }
@@ -131,8 +139,17 @@ function showResult(result: { clear:boolean; score:number; graze:number; highSco
 }
 
 function bindControls(): void {
-  $('#restart').onclick = () => { $('#result-screen').classList.add('hidden'); scene.restart(); };
+  const restart = (): void => { $('#result-screen').classList.add('hidden'); scene.restart(); };
+  $('#restart').onclick = restart;
   $('#pause-button').onclick = () => scene.togglePause();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) scene.pauseForVisibility(); });
+  window.addEventListener('keydown', event => {
+    const advanceKey = event.code === 'KeyZ' || event.code === 'Space' || event.code === 'Enter';
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code)) event.preventDefault();
+    if (event.repeat || !advanceKey) return;
+    if (dialogueAdvance) { event.preventDefault(); event.stopImmediatePropagation(); dialogueAdvance(); return; }
+    if (!$('#result-screen').classList.contains('hidden')) { event.preventDefault(); event.stopImmediatePropagation(); restart(); }
+  }, true);
   const keyMap: Record<string, { key:string; code:string }> = {
     up:{key:'ArrowUp',code:'ArrowUp'}, down:{key:'ArrowDown',code:'ArrowDown'}, left:{key:'ArrowLeft',code:'ArrowLeft'}, right:{key:'ArrowRight',code:'ArrowRight'},
     shoot:{key:'z',code:'KeyZ'}, focus:{key:'Shift',code:'ShiftLeft'}, bomb:{key:'x',code:'KeyX'},

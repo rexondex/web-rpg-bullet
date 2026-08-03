@@ -359,6 +359,10 @@ export class BulletHellScene extends Phaser.Scene {
     this.emitState();
   }
 
+  pauseForVisibility(): void {
+    if (!this.ended && !this.cinematic && !this.isPaused) this.togglePause();
+  }
+
   private emitState(): void {
     const phase = this.config.boss.phases[this.bossPhase];
     const stage = this.config.stages[this.currentStageIndex];

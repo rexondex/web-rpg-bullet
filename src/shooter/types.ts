@@ -106,6 +106,8 @@ export interface ShooterProtocol {
     retry: string;
     nextDialogue: string;
     startBattle: string;
+    dialogueHint: string;
+    retryHint: string;
     messages: { miss:string; respawn:string; lastLife:string; bomb:string; bombCleared:string; bossWarning:string };
   };
   stages: ShooterStage[];

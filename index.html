@@ -21,7 +21,7 @@
         <div id="pause-layer" class="pause-layer hidden"><strong id="pause-title"></strong><span id="pause-help"></span></div>
         <div id="dialogue" class="dialogue hidden" data-side="left" role="dialog" aria-live="polite">
           <img id="dialogue-portrait" class="hidden" alt="" />
-          <div class="dialogue-box"><span id="dialogue-speaker"></span><p id="dialogue-text"></p><button id="dialogue-next" type="button">다음 ›</button></div>
+          <div class="dialogue-box"><span id="dialogue-speaker"></span><b id="dialogue-progress"></b><p id="dialogue-text"></p><small id="dialogue-hint"></small><button id="dialogue-next" type="button"></button></div>
         </div>
         <div id="mobile-controls" class="mobile-controls">
           <div class="dpad"><button data-key="up">▲</button><button data-key="left">◀</button><button data-key="down">▼</button><button data-key="right">▶</button></div>
@@ -38,7 +38,7 @@
       </aside>
     </section>
   </main>
-  <section id="result-screen" class="result-screen hidden" role="dialog" aria-modal="true"><div><span id="result-kicker"></span><h2 id="result-title"></h2><dl><div><dt data-label="score"></dt><dd id="result-score"></dd></div><div><dt data-label="graze"></dt><dd id="result-graze"></dd></div><div><dt data-label="highScore"></dt><dd id="result-high"></dd></div></dl><button id="restart" type="button"></button></div></section>
+  <section id="result-screen" class="result-screen hidden" role="dialog" aria-modal="true"><div><span id="result-kicker"></span><h2 id="result-title"></h2><dl><div><dt data-label="score"></dt><dd id="result-score"></dd></div><div><dt data-label="graze"></dt><dd id="result-graze"></dd></div><div><dt data-label="highScore"></dt><dd id="result-high"></dd></div></dl><button id="restart" type="button"></button><small id="retry-hint"></small></div></section>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
