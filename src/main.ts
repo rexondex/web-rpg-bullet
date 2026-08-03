@@ -2,21 +2,23 @@ import Phaser from 'phaser';
 import './style.css';
 import { BulletHellScene } from './shooter/BulletHellScene';
 import { LocalLeaderboard } from './shooter/Leaderboard';
+import { GameDocumentStore } from './shooter/GameDocumentStore';
 import { loadShooterContent, ShooterContentError } from './shooter/ShooterContent';
-import type { DialogueRequest, ScoreEntry, ShooterProtocol, ShooterState } from './shooter/types';
+import type { DialogueRequest, ScoreEntry, ShooterGameDocument, ShooterProtocol, ShooterRuntimeState, ShooterState } from './shooter/types';
 
 const $ = <T extends HTMLElement>(selector:string):T => document.querySelector<T>(selector)!;
 let config:ShooterProtocol;let scene:BulletHellScene;let game:Phaser.Game;let leaderboard:LocalLeaderboard;
+let documentStore:GameDocumentStore;let savedDocument:ShooterGameDocument|null=null;
 let selectedPlayerId='';let messageTimer=0;let dialogueAdvance:(()=>void)|null=null;
 
 async function boot():Promise<void>{
   try{
-    config=await loadShooterContent();selectedPlayerId=config.game.defaultPlayer;leaderboard=new LocalLeaderboard(config.game.id);
+    const base=await loadShooterContent();documentStore=new GameDocumentStore(base);savedDocument=documentStore.load();config=savedDocument??base;selectedPlayerId=config.game.defaultPlayer;leaderboard=new LocalLeaderboard(config.game.id);
     applyStaticContent();renderCharacterSelect();renderLeaderboard();bindControls();
     game=new Phaser.Game({type:Phaser.AUTO,parent:'game',width:config.rules.playfield.width,height:config.rules.playfield.height,backgroundColor:'#070b18',physics:{default:'arcade',arcade:{debug:false}},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[],render:{antialias:true,pixelArt:false,roundPixels:false}});
     game.events.once(Phaser.Core.Events.READY,()=>{
       scene=new BulletHellScene(config);game.scene.add('bullet-hell',scene,false);
-      scene.events.on('state',renderState);scene.events.on('message',showMessage);scene.events.on('result',showResult);scene.events.on('dialogue',showDialogue);scene.events.on('pause',(paused:boolean)=>$('#pause-layer').classList.toggle('hidden',!paused));
+      scene.events.on('state',renderState);scene.events.on('message',showMessage);scene.events.on('result',showResult);scene.events.on('dialogue',showDialogue);scene.events.on('pause',(paused:boolean)=>$('#pause-layer').classList.toggle('hidden',!paused));scene.events.on('checkpoint',saveRuntime);
       $('#loading').classList.add('hidden');$('#title-screen').classList.remove('hidden');
     });
   }catch(error){showBootError(error);}
@@ -35,12 +37,20 @@ function applyStaticContent():void{
 function fillGuide(target:HTMLElement):void{target.replaceChildren(...config.ui.guide.map(item=>{const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=item.label;description.textContent=item.value;row.append(term,description);return row;}));}
 
 function renderCharacterSelect():void{
-  const entries=Object.entries(config.players);$('#character-select').replaceChildren(...entries.map(([id,player])=>{const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.player=id;button.classList.toggle('selected',id===selectedPlayerId);if(player.portrait){const image=document.createElement('img');image.src=config.assets[player.portrait];image.alt='';button.append(image);}const copy=document.createElement('span'),name=document.createElement('strong'),description=document.createElement('small'),weapons=document.createElement('em');name.textContent=player.name;description.textContent=player.description;weapons.textContent=`SHOT · ${player.shotName}  /  BOMB · ${player.bombName}`;copy.append(name,description,weapons);button.append(copy);return button;}));
+  const entries=Object.entries(config.players);$('#character-select').replaceChildren(...entries.map(([id,player])=>{const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.player=id;button.classList.toggle('selected',id===selectedPlayerId);if(player.portrait){const image=document.createElement('img');image.src=config.assets[player.portrait];image.alt='';button.append(image);}const copy=document.createElement('span'),name=document.createElement('strong'),description=document.createElement('small'),weapons=document.createElement('em');name.textContent=player.name;description.textContent=player.description;weapons.textContent=`SHOT · ${player.shotName}  /  BOMB · ${player.bombName}`;copy.append(name,description,weapons);button.append(copy);return button;}));$('#continue-game').classList.toggle('hidden',!savedDocument?.runtime);
 }
 
 function startGame():void{
   if(!config.players[selectedPlayerId])return;clearOverlays();$('#title-screen').classList.add('hidden');$('#game-shell').classList.remove('title-mode');game.scene.start('bullet-hell',{playerId:selectedPlayerId});
 }
+
+function continueGame():void{if(!savedDocument?.runtime)return;selectedPlayerId=savedDocument.runtime.playerId;clearOverlays();$('#title-screen').classList.add('hidden');$('#game-shell').classList.remove('title-mode');game.scene.start('bullet-hell',{runtime:savedDocument.runtime});}
+
+function saveRuntime(runtime:ShooterRuntimeState):void{savedDocument=documentStore.save(runtime,config);$('#continue-game').classList.remove('hidden');}
+
+function exportGameDocument():void{try{const blob=documentStore.export(savedDocument),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`${config.game.id}-${new Date().toISOString().slice(0,10)}.json`;link.click();URL.revokeObjectURL(url);}catch(error){window.alert(error instanceof Error?error.message:String(error));}}
+
+async function importGameDocument(file:File):Promise<void>{try{const imported=documentStore.parse(await file.text());localStorage.setItem(documentStore.key,JSON.stringify(imported));location.reload();}catch(error){window.alert(error instanceof Error?error.message:String(error));}}
 
 function returnToTitle():void{
   if(game.scene.isActive('bullet-hell'))game.scene.stop('bullet-hell');clearOverlays();renderLeaderboard();renderCharacterSelect();$('#game-shell').classList.add('title-mode');$('#title-screen').classList.remove('hidden');
@@ -75,7 +85,7 @@ function renderLeaderboard():void{
 function createScoreRow(entry:ScoreEntry,index:number):HTMLElement{const row=document.createElement('article'),rank=document.createElement('b'),copy=document.createElement('span'),name=document.createElement('strong'),meta=document.createElement('small'),score=document.createElement('em');rank.textContent=String(index+1).padStart(2,'0');name.textContent=entry.playerName;meta.textContent=`${entry.cleared?'CLEAR':'MISS'} · GRAZE ${entry.graze.toLocaleString()}`;score.textContent=entry.score.toLocaleString();copy.append(name,meta);row.append(rank,copy,score);return row;}
 
 function bindControls():void{
-  $('#character-select').onclick=event=>{const card=(event.target as HTMLElement).closest<HTMLButtonElement>('[data-player]');if(!card)return;selectedPlayerId=card.dataset.player!;renderCharacterSelect();};$('#start-game').onclick=startGame;$('#restart').onclick=quickRetry;$('#return-title').onclick=returnToTitle;$('#clear-scores').onclick=()=>{leaderboard.clear();renderLeaderboard();};$('#pause-button').onclick=()=>scene?.togglePause();document.addEventListener('visibilitychange',()=>{if(document.hidden)scene?.pauseForVisibility();});
+  $('#character-select').onclick=event=>{const card=(event.target as HTMLElement).closest<HTMLButtonElement>('[data-player]');if(!card)return;selectedPlayerId=card.dataset.player!;renderCharacterSelect();};$('#start-game').onclick=startGame;$('#continue-game').onclick=continueGame;$('#restart').onclick=quickRetry;$('#return-title').onclick=returnToTitle;$('#clear-scores').onclick=()=>{leaderboard.clear();renderLeaderboard();};$('#pause-button').onclick=()=>scene?.togglePause();$('#save-button').onclick=()=>{if(!game?.scene.isActive('bullet-hell')||!scene.requestManualSave())window.alert('플레이 중인 안정된 구간에서만 저장할 수 있습니다.');};$('#export-save').onclick=exportGameDocument;$('#import-save').onclick=()=>$('#import-file').click();$('#import-file').onchange=event=>{const file=(event.target as HTMLInputElement).files?.[0];if(file)void importGameDocument(file);};document.addEventListener('visibilitychange',()=>{if(document.hidden&&game?.scene.isActive('bullet-hell')){scene.requestManualSave();scene.pauseForVisibility();}});
   window.addEventListener('keydown',event=>{const advance=event.code==='KeyZ'||event.code==='Space'||event.code==='Enter';if(event.code==='Space')event.preventDefault();if(event.repeat||!advance)return;if(dialogueAdvance){event.stopImmediatePropagation();dialogueAdvance();return;}if(!$('#result-screen').classList.contains('hidden')){event.preventDefault();event.stopImmediatePropagation();return;}if(!$('#title-screen').classList.contains('hidden')){event.stopImmediatePropagation();startGame();}});
   const keyMap:Record<string,{key:string;code:string}>={up:{key:'ArrowUp',code:'ArrowUp'},down:{key:'ArrowDown',code:'ArrowDown'},left:{key:'ArrowLeft',code:'ArrowLeft'},right:{key:'ArrowRight',code:'ArrowRight'},shoot:{key:'z',code:'KeyZ'},focus:{key:'Shift',code:'ShiftLeft'},bomb:{key:'x',code:'KeyX'}};document.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>{const fire=(type:'keydown'|'keyup'):void=>{const key=keyMap[button.dataset.key!];window.dispatchEvent(new KeyboardEvent(type,{...key,bubbles:true}));};button.addEventListener('pointerdown',event=>{event.preventDefault();button.setPointerCapture(event.pointerId);fire('keydown');});['pointerup','pointercancel','lostpointercapture'].forEach(type=>button.addEventListener(type,()=>fire('keyup')));});
 }

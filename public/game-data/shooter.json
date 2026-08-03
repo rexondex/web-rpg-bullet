@@ -1,10 +1,11 @@
 {
   "protocolVersion": 1,
+  "persistence": { "autosaveIntervalMs": 5000, "storageKey": "starfall-barrage:game-document" },
   "game": {
     "id": "starfall-barrage",
     "title": "STARFALL BARRAGE",
     "subtitle": "두 개의 짧은 스테이지로 구성된 데이터 기반 탄막 슈팅 프로토타입",
-    "version": "0.5.4",
+    "version": "0.6.0",
     "defaultPlayer": "star_traveler"
   },
   "rules": {

@@ -139,6 +139,44 @@ export interface ShooterProtocol {
   enemies: Record<string, EnemyDefinition>;
   boss: { name: string; texture: string; radius: number; movement:{ spawnX:number; spawnY:number; enterY:number; enterSpeed:number; amplitudeX:number; periodMs:number }; phases: BossPhase[] };
   assets: Record<string, string>;
+  persistence?: {
+    autosaveIntervalMs: number;
+    storageKey?: string;
+  };
+}
+
+export interface ShooterEntityState {
+  kind: 'enemy'|'boss'|'enemyBullet'|'playerShot'|'pickup';
+  definitionId?: string;
+  x: number;
+  y: number;
+  velocityX: number;
+  velocityY: number;
+  hp?: number;
+  damage?: number;
+  tint?: number;
+  grazed?: boolean;
+  firedAgoMs?: number;
+  angleSeed?: number;
+}
+
+/** 게임 데이터와 함께 저장·이식되는 가변 실행 상태입니다. 모든 시간은 복원 시계를 기준으로 한 상대값입니다. */
+export interface ShooterRuntimeState {
+  schemaVersion: 1;
+  savedAt: string;
+  playerId: string;
+  stageId: string;
+  stageElapsedMs: number;
+  waveIndex: number;
+  bossTriggered: boolean;
+  player: { x:number; y:number; score:number; lives:number; bombs:number; power:number; graze:number; combo:number; comboRemainingMs:number; invulnerableRemainingMs:number };
+  boss: { phase:number; hp:number; phaseElapsedMs:number; patternElapsedMs:Record<string,number> } | null;
+  entities: ShooterEntityState[];
+}
+
+/** 배포용 콘텐츠와 진행 상태가 하나의 JSON 뼈대를 이루는 저장 문서입니다. */
+export interface ShooterGameDocument extends ShooterProtocol {
+  runtime?: ShooterRuntimeState;
 }
 
 export interface ShooterState {

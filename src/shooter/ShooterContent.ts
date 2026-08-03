@@ -33,6 +33,7 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
   if (data.rules && (data.rules.playerHitboxRadius <= 0 || data.rules.grazeRadius <= data.rules.playerHitboxRadius)) issues.push('rules: grazeRadius는 playerHitboxRadius보다 커야 합니다.');
   if (!data.scoring || Object.values(data.scoring).some(value => value < 0)) issues.push('scoring: 점수 값은 0 이상이어야 합니다.');
   if (!data.ui?.stageClear || !data.ui?.gameOver || !data.ui?.labels || !data.ui?.messages) issues.push('ui: 결과, 라벨, 메시지 문구가 필요합니다.');
+  if (data.persistence && data.persistence.autosaveIntervalMs < 1000) issues.push('persistence.autosaveIntervalMs: 1000ms 이상이어야 합니다.');
   if (!data.stages?.length) issues.push('stages: 스테이지가 하나 이상 필요합니다.');
   if (!data.players?.[data.game?.defaultPlayer]) issues.push(`game.defaultPlayer: 없는 캐릭터 '${data.game?.defaultPlayer}'`);
   Object.entries(data.players ?? {}).forEach(([id, player]) => {

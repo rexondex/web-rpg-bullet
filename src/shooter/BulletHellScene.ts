@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import type { BulletPattern, EnemyDefinition, PlayerDefinition, ShooterProtocol, ShooterState, WaveEntry } from './types';
+import type { BulletPattern, EnemyDefinition, PlayerDefinition, ShooterProtocol, ShooterRuntimeState, ShooterState, WaveEntry } from './types';
 
-type EnemySprite = Phaser.Physics.Arcade.Sprite & { firedAt?: number; definition?: EnemyDefinition; phase?: number; angleSeed?: number };
+type EnemySprite = Phaser.Physics.Arcade.Sprite & { firedAt?: number; definition?: EnemyDefinition; definitionId?: string; phase?: number; angleSeed?: number };
 type BulletSprite = Phaser.Physics.Arcade.Image & { grazed?: boolean };
 
 export class BulletHellScene extends Phaser.Scene {
@@ -40,6 +40,7 @@ export class BulletHellScene extends Phaser.Scene {
   private lastStateEmitAt = -Infinity;
   private highScoreDirty = false;
   private selectedPlayerId: string;
+  private pendingRuntime?: ShooterRuntimeState;
 
   constructor(private config: ShooterProtocol) { super('bullet-hell'); this.selectedPlayerId = config.game.defaultPlayer; }
   private get playerConfig(): PlayerDefinition { return this.config.players[this.selectedPlayerId] ?? this.config.players[this.config.game.defaultPlayer]; }
@@ -48,7 +49,11 @@ export class BulletHellScene extends Phaser.Scene {
   private get playerSpawnX(): number { return this.playerConfig.spawnX; }
   private get playerSpawnY(): number { return this.playHeight - this.playerConfig.spawnBottom; }
 
-  init(data?: { playerId?:string }): void { if (data?.playerId && this.config.players[data.playerId]) this.selectedPlayerId = data.playerId; }
+  init(data?: { playerId?:string; runtime?:ShooterRuntimeState }): void {
+    this.pendingRuntime = data?.runtime;
+    const playerId = data?.runtime?.playerId ?? data?.playerId;
+    if (playerId && this.config.players[playerId]) this.selectedPlayerId = playerId;
+  }
 
   preload(): void {
     Object.entries(this.config.assets).forEach(([id, src]) => this.load.image(id, src));
@@ -82,7 +87,9 @@ export class BulletHellScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.pickups, (player, pickup) => this.collectPickup(player as Phaser.Types.Physics.Arcade.GameObjectWithBody, pickup as Phaser.Types.Physics.Arcade.GameObjectWithBody));
     this.highScore = Number(localStorage.getItem(`${this.config.game.id}:high-score`) ?? 0);
     this.time.addEvent({ delay:2000, loop:true, callback:()=>this.persistHighScore() });
-    this.time.delayedCall(120, () => this.startStage(0));
+    const runtime = this.pendingRuntime; this.pendingRuntime = undefined;
+    this.time.delayedCall(120, () => runtime ? this.restoreRuntime(runtime) : this.startStage(0));
+    this.time.addEvent({ delay:this.config.persistence?.autosaveIntervalMs ?? 5000, loop:true, callback:()=>this.requestAutosave() });
     this.events.emit('pause', false);
     this.emitState(true);
   }
@@ -195,7 +202,7 @@ export class BulletHellScene extends Phaser.Scene {
       if (!enemy) continue;
       enemy.enableBody(true, x, y, true, true).setTexture('enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius / 16).setDepth(5);
       enemy.setCircle(13).setData('hp', definition.hp).setData('wave', wave.formation);
-      enemy.definition = definition; enemy.firedAt = 0; enemy.angleSeed = Math.random() * Math.PI * 2;
+      enemy.definition = definition; enemy.definitionId = wave.enemy; enemy.firedAt = 0; enemy.angleSeed = Math.random() * Math.PI * 2;
       const body = enemy.body as Phaser.Physics.Arcade.Body;
       body.setVelocity(wave.formation === 'sweep-left' ? 35 : wave.formation === 'sweep-right' ? -35 : Math.sin(index * 2) * 24, definition.speed);
     }
@@ -411,6 +418,50 @@ export class BulletHellScene extends Phaser.Scene {
   }
 
   restart(): void { this.scene.restart(); }
+
+  createRuntimeState(): ShooterRuntimeState | null {
+    if (this.ended || this.cinematic || this.stageTransitioning || this.bossPhaseTransitioning) return null;
+    const now = this.time.now;
+    const entities: ShooterRuntimeState['entities'] = [];
+    this.enemies.getChildren().forEach(child => {
+      const enemy = child as EnemySprite; if (!enemy.active) return;
+      const body = enemy.body as Phaser.Physics.Arcade.Body;
+      entities.push({ kind:enemy===this.boss?'boss':'enemy', definitionId:enemy.definitionId, x:enemy.x, y:enemy.y, velocityX:body.velocity.x, velocityY:body.velocity.y, hp:Number(enemy.getData('hp')??0), firedAgoMs:Math.max(0,now-(enemy.firedAt??now)), angleSeed:enemy.angleSeed });
+    });
+    const collect = (group:Phaser.Physics.Arcade.Group, kind:'enemyBullet'|'playerShot'|'pickup'):void => group.getChildren().forEach(child => {
+      const item=child as BulletSprite; if(!item.active)return; const body=item.body as Phaser.Physics.Arcade.Body;
+      entities.push({kind,x:item.x,y:item.y,velocityX:body.velocity.x,velocityY:body.velocity.y,damage:Number(item.getData('damage')??0)||undefined,tint:item.tintTopLeft,grazed:item.grazed});
+    });
+    collect(this.enemyBullets,'enemyBullet');collect(this.playerShots,'playerShot');collect(this.pickups,'pickup');
+    const patternElapsedMs:Record<string,number>={};this.patternTimers.forEach((at,key)=>{patternElapsedMs[key]=Math.max(0,now-at);});
+    return {schemaVersion:1,savedAt:new Date().toISOString(),playerId:this.selectedPlayerId,stageId:this.config.stages[this.currentStageIndex].id,stageElapsedMs:Math.max(0,now-this.stageStartedAt),waveIndex:this.waveIndex,bossTriggered:this.bossTriggered,player:{x:this.player.x,y:this.player.y,score:this.score,lives:this.lives,bombs:this.bombs,power:this.power,graze:this.graze,combo:this.combo,comboRemainingMs:Math.max(0,this.comboUntil-now),invulnerableRemainingMs:Math.max(0,this.invulnerableUntil-now)},boss:this.boss?.active&&this.bossPhase>=0?{phase:this.bossPhase,hp:this.bossPhaseHp,phaseElapsedMs:Math.max(0,now-this.bossPhaseStarted),patternElapsedMs}:null,entities};
+  }
+
+  requestManualSave(): boolean { const runtime=this.createRuntimeState();if(!runtime)return false;this.events.emit('checkpoint',runtime);return true; }
+
+  private requestAutosave(): void { const runtime=this.createRuntimeState();if(runtime)this.events.emit('checkpoint',runtime); }
+
+  private restoreRuntime(runtime: ShooterRuntimeState): void {
+    const stageIndex=this.config.stages.findIndex(stage=>stage.id===runtime.stageId);if(stageIndex<0){this.startStage(0);return;}
+    const now=this.time.now,p=runtime.player;this.currentStageIndex=stageIndex;this.waveIndex=runtime.waveIndex;this.bossTriggered=runtime.bossTriggered;this.stageStartedAt=now-runtime.stageElapsedMs;
+    this.stageBackground.setTexture(this.config.stages[stageIndex].background).setDisplaySize(this.playWidth,this.playHeight);this.player.setPosition(p.x,p.y);this.score=p.score;this.lives=p.lives;this.bombs=p.bombs;this.power=p.power;this.graze=p.graze;this.combo=p.combo;this.comboUntil=now+p.comboRemainingMs;this.invulnerableUntil=now+p.invulnerableRemainingMs;
+    this.enemyBullets.clear(true,true);this.playerShots.clear(true,true);this.enemies.clear(true,true);this.pickups.clear(true,true);this.boss=null;this.patternTimers.clear();
+    runtime.entities.forEach(saved=>{
+      let item:Phaser.Physics.Arcade.Image|Phaser.Physics.Arcade.Sprite|null=null;
+      if(saved.kind==='enemy'||saved.kind==='boss'){
+        const enemy=this.enemies.get(saved.x,saved.y,saved.kind==='boss'?this.config.boss.texture:'enemy-core') as EnemySprite|null;if(!enemy)return;enemy.enableBody(true,saved.x,saved.y,true,true).setDepth(saved.kind==='boss'?6:5);enemy.setData('hp',saved.hp??1);enemy.angleSeed=saved.angleSeed;enemy.firedAt=now-(saved.firedAgoMs??0);
+        if(saved.kind==='boss'){enemy.setTexture(this.config.boss.texture).setScale(.24).setTint(0xffd8ff);enemy.setCircle(this.config.boss.radius,Math.max(0,enemy.width/2-this.config.boss.radius),Math.max(0,enemy.height/2-this.config.boss.radius));enemy.phase=runtime.boss?.phase??-1;this.boss=enemy;}
+        else {const definition=saved.definitionId?this.config.enemies[saved.definitionId]:undefined;if(!definition){enemy.disableBody(true,true);return;}enemy.definition=definition;enemy.definitionId=saved.definitionId;enemy.setTexture('enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius/16).setCircle(13);}
+        item=enemy;
+      } else {
+        const group=saved.kind==='enemyBullet'?this.enemyBullets:saved.kind==='playerShot'?this.playerShots:this.pickups;const texture=saved.kind==='enemyBullet'?'enemy-bullet':saved.kind==='playerShot'?'player-shot':'power-item';const image=group.get(saved.x,saved.y,texture) as BulletSprite|null;if(!image)return;image.enableBody(true,saved.x,saved.y,true,true).setTexture(texture).setDepth(saved.kind==='enemyBullet'?4:5);if(saved.tint!==undefined)image.setTint(saved.tint);if(saved.kind==='enemyBullet'){image.setCircle(5);image.grazed=Boolean(saved.grazed);}if(saved.kind==='playerShot'){image.setData('damage',saved.damage??1);(image.body as Phaser.Physics.Arcade.Body).setSize(6,20,true);}if(saved.kind==='pickup')image.setCircle(7);item=image;
+      }
+      (item.body as Phaser.Physics.Arcade.Body).setVelocity(saved.velocityX,saved.velocityY);
+    });
+    if(runtime.boss&&this.boss){this.bossPhase=runtime.boss.phase;this.bossPhaseHp=runtime.boss.hp;this.bossPhaseStarted=now-runtime.boss.phaseElapsedMs;this.bossPhaseTransitioning=false;Object.entries(runtime.boss.patternElapsedMs).forEach(([key,elapsed])=>this.patternTimers.set(key,now-elapsed));}
+    else {this.bossPhase=-1;this.bossPhaseHp=0;this.bossPhaseTransitioning=false;}
+    this.stageTransitioning=false;this.cinematic=false;this.ended=false;this.physics.world.resume();this.events.emit('message',{title:this.config.stages[stageIndex].name,text:'저장한 시점에서 계속합니다.',duration:1400});this.emitState(true);
+  }
 
   togglePause(): void {
     if (this.cinematic || this.ended) return;
