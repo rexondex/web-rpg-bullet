@@ -6,6 +6,66 @@
     "subtitle": "두 개의 짧은 스테이지로 구성된 데이터 기반 탄막 슈팅 프로토타입",
     "version": "0.3.0"
   },
+  "rules": {
+    "playfield": { "width": 640, "height": 720 },
+    "pools": { "playerShots": 180, "enemyBullets": 900, "enemies": 80, "pickups": 50 },
+    "playerHitboxRadius": 12,
+    "grazeRadius": 34,
+    "hitInvulnerabilityMs": 2200,
+    "bombInvulnerabilityMs": 1800,
+    "bombDamage": 90,
+    "deathPowerLoss": 1,
+    "respawnBombs": 2,
+    "bulletCullMargin": 60,
+    "pickupFallSpeed": 85
+  },
+  "scoring": {
+    "grazeBase": 100,
+    "pickup": 2500,
+    "bombBulletClear": 40,
+    "bossCapture": 50000,
+    "bossTimeout": 10000,
+    "bossTimeMultiplier": 8,
+    "clearPerLife": 30000,
+    "clearPerBomb": 10000
+  },
+  "ui": {
+    "eyebrow": "DATA-DRIVEN BULLET HELL",
+    "brandKicker": "THE FIRST SPELL",
+    "brandTitle": "星降る\n弾幕",
+    "brandCaption": "STARFALL BARRAGE",
+    "pauseButton": "P · 일시정지",
+    "pauseTitle": "PAUSED",
+    "pauseHelp": "P 또는 버튼으로 계속",
+    "loading": "탄막 패턴을 전개하는 중",
+    "stageProgress": "STAGE {current} / {total}",
+    "guideTitle": "조작",
+    "guide": [
+      { "label": "이동", "value": "방향키 / WASD" },
+      { "label": "사격", "value": "Z 누르고 있기" },
+      { "label": "저속·히트박스", "value": "Shift" },
+      { "label": "폭탄", "value": "X" },
+      { "label": "일시정지", "value": "P" }
+    ],
+    "guideTip": "탄환에 가까이 접근하면 그레이즈 점수와 체인이 상승합니다.",
+    "labels": { "highScore": "HI-SCORE", "score": "SCORE", "player": "PLAYER", "bomb": "BOMB", "power": "POWER", "graze": "GRAZE", "chain": "CHAIN" },
+    "mobile": { "focus": "저속", "shot": "SHOT", "bomb": "BOMB" },
+    "stageClear": "STAGE CLEAR",
+    "stageClearTitle": "별의 문이 열렸습니다",
+    "gameOver": "GAME OVER",
+    "gameOverTitle": "탄막에 삼켜졌습니다",
+    "retry": "다시 도전",
+    "nextDialogue": "다음 ›",
+    "startBattle": "계속 ›",
+    "messages": {
+      "miss": "MISS",
+      "respawn": "남은 기체로 복귀합니다",
+      "lastLife": "모든 기체를 잃었습니다",
+      "bomb": "STAR BREAK",
+      "bombCleared": "탄환 {count}개 소거",
+      "bossWarning": "WARNING · 별을 삼키는 수호자"
+    }
+  },
   "stages": [
     {
       "id": "moonlit_path",
@@ -16,6 +76,7 @@
       "height": 720,
       "introDialogue": "opening",
       "clearDialogue": "stage_one_clear",
+      "nextStage": "starfall_ruins",
       "waves": [
         { "atMs": 500, "enemy": "wisp", "count": 5, "formation": "v", "spacing": 82 },
         { "atMs": 3500, "enemy": "fairy", "count": 6, "formation": "sweep-left", "spacing": 92 },
@@ -71,16 +132,26 @@
     "bombs": 3,
     "shotIntervalMs": 88,
     "shotSpeed": 720
+    ,"spawnX": 320,
+    "spawnBottom": 82,
+    "maxPower": 4,
+    "shotLevels": [
+      { "power": 1, "offsets": [-7, 7], "damage": 2, "velocityXScale": 0 },
+      { "power": 2, "offsets": [-12, 0, 12], "damage": 2, "velocityXScale": 0 },
+      { "power": 3, "offsets": [-20, -7, 7, 20], "damage": 2, "velocityXScale": 0 },
+      { "power": 4, "offsets": [-26, -13, 0, 13, 26], "damage": 3, "velocityXScale": 1.2 }
+    ]
   },
   "enemies": {
-    "wisp": { "hp": 10, "speed": 76, "radius": 14, "score": 1200, "color": "#70e8ff", "pattern": { "type": "aimed", "intervalMs": 1300, "bulletSpeed": 160, "count": 1, "waves": 2, "color": "#59dfff" } },
-    "fairy": { "hp": 16, "speed": 68, "radius": 16, "score": 1800, "color": "#ff72c7", "pattern": { "type": "fan", "intervalMs": 1550, "bulletSpeed": 145, "count": 5, "spread": 0.17, "color": "#ff62bb" } },
-    "sentinel": { "hp": 32, "speed": 54, "radius": 22, "score": 5000, "color": "#ffd063", "pattern": { "type": "radial", "intervalMs": 1050, "bulletSpeed": 125, "count": 12, "spin": 0.14, "color": "#ffc857" } }
+    "wisp": { "hp": 10, "speed": 76, "radius": 14, "score": 1200, "pickupChance": 0.42, "color": "#70e8ff", "pattern": { "type": "aimed", "intervalMs": 1300, "bulletSpeed": 160, "count": 1, "waves": 2, "color": "#59dfff" } },
+    "fairy": { "hp": 16, "speed": 68, "radius": 16, "score": 1800, "pickupChance": 0.5, "color": "#ff72c7", "pattern": { "type": "fan", "intervalMs": 1550, "bulletSpeed": 145, "count": 5, "spread": 0.17, "color": "#ff62bb" } },
+    "sentinel": { "hp": 32, "speed": 54, "radius": 22, "score": 5000, "pickupChance": 0.75, "color": "#ffd063", "pattern": { "type": "radial", "intervalMs": 1050, "bulletSpeed": 125, "count": 12, "spin": 0.14, "color": "#ffc857" } }
   },
   "boss": {
     "name": "성좌의 파수꾼 셀레네",
     "texture": "boss_battle",
     "radius": 34,
+    "movement": { "spawnX": 320, "spawnY": -90, "enterY": 130, "enterSpeed": 95, "amplitudeX": 190, "periodMs": 2400 },
     "phases": [
       {
         "name": "성부 「쌍성의 윤무」",

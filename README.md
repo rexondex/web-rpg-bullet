@@ -51,6 +51,19 @@ npm run dev
 - `boss.phases`: 페이즈별 체력, 제한 시간, 복수 탄막
 - `assets`: 플레이어, 보스, 배경 이미지 경로
 
+### 엔진과 작품 데이터의 경계
+
+TypeScript 런타임은 입력, 충돌, 오브젝트 풀, 탄막 패턴 실행, 스테이지·대화 진행처럼 모든 작품에 공통인 동작만 담당합니다. 작품마다 달라질 수 있는 값은 `shooter.json`으로 분리되어 있습니다.
+
+- `rules`: 화면 크기, 풀 크기, 히트박스, 그레이즈, 무적 시간, 폭탄과 사망 규칙
+- `scoring`: 그레이즈, 아이템, 보스 격파, 클리어 보너스
+- `ui`: 제목, 안내, 버튼, 상태 라벨, 결과와 시스템 메시지
+- `player.shotLevels`: 파워 단계별 탄 위치, 피해량, 탄 궤적
+- `boss.movement`: 등장 위치, 진입 속도, 좌우 이동 폭과 주기
+- `stages[].nextStage`: ID 기반 스테이지 연결
+
+새 작품은 엔진 코드를 수정하지 않고 이 데이터와 `public/assets`를 교체하는 것을 기본 원칙으로 합니다.
+
 데이터 형식은 [`src/shooter/types.ts`](src/shooter/types.ts), 참조 검증은 [`src/shooter/ShooterContent.ts`](src/shooter/ShooterContent.ts), 런타임은 [`src/shooter/BulletHellScene.ts`](src/shooter/BulletHellScene.ts)에 구현되어 있습니다.
 
 기존 RPG 엔진 파일과 `game.json`은 이후 대화 장면, 스토리 인터미션, 상점 같은 메타 게임을 다시 결합할 수 있도록 보존되어 있습니다.

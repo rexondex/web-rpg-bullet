@@ -25,4 +25,13 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
     expect(result).toContain('missing-dialogue');
     expect(result).toContain('missing-portrait');
   });
+
+  it('게임 규칙과 스테이지 연결 오류를 검출한다', () => {
+    const invalid = structuredClone(shooterData) as ShooterProtocol;
+    invalid.rules.grazeRadius = invalid.rules.playerHitboxRadius;
+    invalid.stages[0].nextStage = 'missing-stage';
+    const result = validateShooterContent(invalid).join('\n');
+    expect(result).toContain('grazeRadius');
+    expect(result).toContain('missing-stage');
+  });
 });

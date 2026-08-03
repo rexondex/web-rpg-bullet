@@ -7,19 +7,40 @@ import type { DialogueRequest, ShooterState } from './shooter/types';
 const $ = <T extends HTMLElement>(selector: string): T => document.querySelector<T>(selector)!;
 let scene: BulletHellScene;
 let messageTimer = 0;
+let maxPower = 1;
+let uiText: Awaited<ReturnType<typeof loadShooterContent>>['ui'];
 
 async function boot(): Promise<void> {
   try {
     const config = await loadShooterContent();
     assetManifest = config.assets;
+    maxPower = config.player.maxPower;
+    uiText = config.ui;
     $('#game-title').textContent = config.game.title;
     $('#game-subtitle').textContent = config.game.subtitle;
+    $('#eyebrow').textContent = config.ui.eyebrow;
+    $('#brand-kicker').textContent = config.ui.brandKicker;
+    $('#brand-title').textContent = config.ui.brandTitle;
+    $('#brand-caption').textContent = config.ui.brandCaption;
+    $('#pause-button').textContent = config.ui.pauseButton;
+    $('#pause-title').textContent = config.ui.pauseTitle;
+    $('#pause-help').textContent = config.ui.pauseHelp;
+    $('#loading-title').textContent = config.ui.loading;
+    $('#guide-title').textContent = config.ui.guideTitle;
+    $('#guide-list').innerHTML = config.ui.guide.map(item => `<div><dt>${item.label}</dt><dd>${item.value}</dd></div>`).join('');
+    $('#guide-tip').textContent = config.ui.guideTip;
+    Object.entries(config.ui.labels).forEach(([id, value]) => document.querySelectorAll<HTMLElement>(`[data-label="${id}"]`).forEach(element => { element.textContent = value; }));
+    $('#mobile-focus').textContent = config.ui.mobile.focus;
+    $('#mobile-shot').textContent = config.ui.mobile.shot;
+    $('#mobile-bomb').textContent = config.ui.mobile.bomb;
+    $('#restart').textContent = config.ui.retry;
+    $('.playfield').style.aspectRatio = `${config.rules.playfield.width} / ${config.rules.playfield.height}`;
     scene = new BulletHellScene(config);
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: 'game',
-      width: 640,
-      height: 720,
+      width: config.rules.playfield.width,
+      height: config.rules.playfield.height,
       backgroundColor: '#070b18',
       physics: { default:'arcade', arcade:{ debug:false } },
       scale: { mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH },
@@ -47,11 +68,11 @@ function renderState(state: ShooterState): void {
   $('#high-score').textContent = state.highScore.toString().padStart(9, '0');
   $('#lives').innerHTML = Array.from({ length:Math.max(0, state.lives) }, () => '<i>◆</i>').join('') || '<span>LAST</span>';
   $('#bombs').innerHTML = Array.from({ length:Math.max(0, state.bombs) }, () => '<i>✦</i>').join('') || '<span>EMPTY</span>';
-  $('#power').textContent = `${state.power} / 4`;
-  $('#power-bar').style.width = `${state.power / 4 * 100}%`;
+  $('#power').textContent = `${state.power} / ${maxPower}`;
+  $('#power-bar').style.width = `${state.power / maxPower * 100}%`;
   $('#graze').textContent = state.graze.toLocaleString();
   $('#combo').textContent = state.combo > 1 ? `×${state.combo}` : '—';
-  $('#stage-progress').textContent = `STAGE ${state.stageNumber} / ${state.stageCount}`;
+  $('#stage-progress').textContent = uiText.stageProgress.replace('{current}', String(state.stageNumber)).replace('{total}', String(state.stageCount));
   $('#stage-name').textContent = state.stageName;
   const bossVisible = Boolean(state.bossName);
   $('#boss-hud').classList.toggle('hidden', !bossVisible);
@@ -71,7 +92,7 @@ function showDialogue(request: DialogueRequest): void {
     const line = request.lines[index];
     $('#dialogue-speaker').textContent = line.speaker;
     $('#dialogue-text').textContent = line.text;
-    $('#dialogue-next').textContent = index === request.lines.length - 1 ? '전투 시작' : '다음 ›';
+    $('#dialogue-next').textContent = index === request.lines.length - 1 ? uiText.startBattle : uiText.nextDialogue;
     panel.dataset.side = line.side ?? 'left';
     const source = line.portrait ? sceneConfigAsset(line.portrait) : '';
     if (source) { portrait.src = source; portrait.alt = `${line.speaker} 스탠딩 일러스트`; portrait.classList.remove('hidden'); }
@@ -101,8 +122,8 @@ function showMessage(message: { title:string; text:string; duration:number }): v
 }
 
 function showResult(result: { clear:boolean; score:number; graze:number; highScore:number }): void {
-  $('#result-kicker').textContent = result.clear ? 'STAGE CLEAR' : 'GAME OVER';
-  $('#result-title').textContent = result.clear ? '별의 문이 열렸습니다' : '탄막에 삼켜졌습니다';
+  $('#result-kicker').textContent = result.clear ? uiText.stageClear : uiText.gameOver;
+  $('#result-title').textContent = result.clear ? uiText.stageClearTitle : uiText.gameOverTitle;
   $('#result-score').textContent = result.score.toLocaleString();
   $('#result-graze').textContent = result.graze.toLocaleString();
   $('#result-high').textContent = result.highScore.toLocaleString();

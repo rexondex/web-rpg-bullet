@@ -20,7 +20,7 @@ button { color:inherit; font:inherit; cursor:pointer; }
 .side-panel section { position:relative; z-index:1; }
 .logo-card { padding-bottom:20px; border-bottom:1px solid #6bdcf533; }
 .logo-card span,.score-card label,.resource-card label,.metric-card label { display:block; color:#64dffa; font:10px 'Black Ops One',sans-serif; letter-spacing:.17em; }
-.logo-card strong { display:block; margin:7px 0; color:#fff; font:32px/1.05 'Noto Sans KR',sans-serif; letter-spacing:.15em; text-shadow:3px 3px #d5448380,0 0 25px #69e5ff88; }
+.logo-card strong { display:block; margin:7px 0; color:#fff; font:32px/1.05 'Noto Sans KR',sans-serif; letter-spacing:.15em; white-space:pre-line; text-shadow:3px 3px #d5448380,0 0 25px #69e5ff88; }
 .logo-card p { margin:0; color:#a0adc7; font:10px 'Black Ops One'; letter-spacing:.13em; }
 .score-card { display:grid; gap:4px; padding:20px 0; border-bottom:1px solid #6bdcf533; }
 .score-card strong { color:#fff3a9; font:25px/1.25 'Black Ops One',monospace; letter-spacing:.08em; text-align:right; text-shadow:0 0 12px #ffbd4f66; }
