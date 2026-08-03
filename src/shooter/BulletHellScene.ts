@@ -37,6 +37,8 @@ export class BulletHellScene extends Phaser.Scene {
   private ended = false;
   private isPaused = false;
   private patternTimers = new Map<string, number>();
+  private lastStateEmitAt = -Infinity;
+  private highScoreDirty = false;
 
   constructor(private config: ShooterProtocol) { super('bullet-hell'); }
   private get playWidth(): number { return this.config.rules.playfield.width; }
@@ -69,9 +71,10 @@ export class BulletHellScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemies, (player, enemy) => this.hitPlayer(player as Phaser.Types.Physics.Arcade.GameObjectWithBody, enemy as Phaser.Types.Physics.Arcade.GameObjectWithBody));
     this.physics.add.overlap(this.player, this.pickups, (player, pickup) => this.collectPickup(player as Phaser.Types.Physics.Arcade.GameObjectWithBody, pickup as Phaser.Types.Physics.Arcade.GameObjectWithBody));
     this.highScore = Number(localStorage.getItem(`${this.config.game.id}:high-score`) ?? 0);
+    this.time.addEvent({ delay:2000, loop:true, callback:()=>this.persistHighScore() });
     this.time.delayedCall(120, () => this.startStage(0));
     this.events.emit('pause', false);
-    this.emitState();
+    this.emitState(true);
   }
 
   private resetRunState(): void {
@@ -98,6 +101,8 @@ export class BulletHellScene extends Phaser.Scene {
     this.ended = false;
     this.isPaused = false;
     this.patternTimers.clear();
+    this.lastStateEmitAt = -Infinity;
+    this.highScoreDirty = false;
   }
 
   update(time: number, delta: number): void {
@@ -177,7 +182,7 @@ export class BulletHellScene extends Phaser.Scene {
       if (wave.formation === 'sweep-right') { x = this.playWidth - 45 - index * spacing; y -= index * 34; }
       const enemy = this.enemies.get(x, y, 'enemy-core') as EnemySprite | null;
       if (!enemy) continue;
-      enemy.enableBody(true, x, y, true, true).setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius / 16).setDepth(5);
+      enemy.enableBody(true, x, y, true, true).setTexture('enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius / 16).setDepth(5);
       enemy.setCircle(13).setData('hp', definition.hp).setData('wave', wave.formation);
       enemy.definition = definition; enemy.firedAt = 0; enemy.angleSeed = Math.random() * Math.PI * 2;
       const body = enemy.body as Phaser.Physics.Arcade.Body;
@@ -204,7 +209,7 @@ export class BulletHellScene extends Phaser.Scene {
     const movement = this.config.boss.movement;
     const boss = this.enemies.get(movement.spawnX, movement.spawnY, this.config.boss.texture) as EnemySprite | null;
     if (!boss) return;
-    boss.enableBody(true, movement.spawnX, movement.spawnY, true, true).setScale(.24).setDepth(6).setTint(0xffd8ff);
+    boss.enableBody(true, movement.spawnX, movement.spawnY, true, true).setTexture(this.config.boss.texture).setScale(.24).setDepth(6).setTint(0xffd8ff);
     boss.setCircle(this.config.boss.radius, Math.max(0, boss.width / 2 - this.config.boss.radius), Math.max(0, boss.height / 2 - this.config.boss.radius));
     (boss.body as Phaser.Physics.Arcade.Body).setVelocity(0, movement.enterSpeed);
     boss.phase = -1;
@@ -265,8 +270,8 @@ export class BulletHellScene extends Phaser.Scene {
     shotLevel.offsets.forEach((offset, index) => {
       const shot = this.playerShots.get(this.player.x + offset, this.player.y - 26, 'player-shot') as Phaser.Physics.Arcade.Image | null;
       if (!shot) return;
-      shot.enableBody(true, this.player.x + offset, this.player.y - 26, true, true).setDepth(5).setTint(index % 2 ? 0x8fffff : 0xffffff).setCircle(3);
-      (shot.body as Phaser.Physics.Arcade.Body).setVelocity(offset * (shotLevel.velocityXScale ?? 0), -this.config.player.shotSpeed);
+      shot.enableBody(true, this.player.x + offset, this.player.y - 26, true, true).setTexture('player-shot').setDepth(5).setTint(index % 2 ? 0x8fffff : 0xffffff);
+      const shotBody = shot.body as Phaser.Physics.Arcade.Body; shotBody.setSize(6, 20, true).setVelocity(offset * (shotLevel.velocityXScale ?? 0), -this.config.player.shotSpeed);
       shot.setData('damage', shotLevel.damage);
     });
   }
@@ -352,7 +357,7 @@ export class BulletHellScene extends Phaser.Scene {
   private spawnPickup(x: number, y: number): void {
     const pickup = this.pickups.get(x, y, 'power-item') as Phaser.Physics.Arcade.Image | null;
     if (!pickup) return;
-    pickup.enableBody(true, x, y, true, true).setDepth(5).setCircle(7);
+    pickup.enableBody(true, x, y, true, true).setTexture('power-item').setDepth(5).setCircle(7);
     (pickup.body as Phaser.Physics.Arcade.Body).setVelocity(Phaser.Math.Between(-25, 25), this.config.rules.pickupFallSpeed);
   }
 
@@ -363,38 +368,48 @@ export class BulletHellScene extends Phaser.Scene {
 
   private addScore(amount: number): void {
     this.score += amount;
-    if (this.score > this.highScore) { this.highScore = this.score; localStorage.setItem(`${this.config.game.id}:high-score`, String(this.highScore)); }
+    if (this.score > this.highScore) { this.highScore = this.score; this.highScoreDirty = true; }
+  }
+
+  private persistHighScore(): void {
+    if (!this.highScoreDirty) return;
+    localStorage.setItem(`${this.config.game.id}:high-score`, String(this.highScore));
+    this.highScoreDirty = false;
   }
 
   private clearStage(): void {
     if (this.ended) return;
     this.ended = true; this.enemyBullets.clear(true, true); this.boss?.disableBody(true, true);
     this.addScore(this.lives * this.config.scoring.clearPerLife + this.bombs * this.config.scoring.clearPerBomb);
+    this.persistHighScore();
     const dialogue = this.config.stages[this.currentStageIndex]?.clearDialogue;
     this.ended = false;
-    this.beginDialogue(dialogue, () => { this.ended = true; this.events.emit('result', { clear:true, score:this.score, graze:this.graze, highScore:this.highScore }); });
+    this.beginDialogue(dialogue, () => { this.ended = true; this.physics.world.pause(); this.events.emit('result', { clear:true, score:this.score, graze:this.graze, highScore:this.highScore }); });
   }
 
   private gameOver(): void {
     if (this.ended) return;
-    this.ended = true; (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    this.ended = true; (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0); this.physics.world.pause(); this.persistHighScore();
     this.events.emit('result', { clear:false, score:this.score, graze:this.graze, highScore:this.highScore });
   }
 
   restart(): void { this.scene.restart(); }
 
   togglePause(): void {
+    if (this.cinematic || this.ended) return;
     this.isPaused = !this.isPaused;
     this.physics.world.isPaused = this.isPaused;
     this.events.emit('pause', this.isPaused);
-    this.emitState();
+    this.emitState(true);
   }
 
   pauseForVisibility(): void {
     if (!this.ended && !this.cinematic && !this.isPaused) this.togglePause();
   }
 
-  private emitState(): void {
+  private emitState(force = false): void {
+    if (!force && this.time.now - this.lastStateEmitAt < 50) return;
+    this.lastStateEmitAt = this.time.now;
     const phase = this.config.boss.phases[this.bossPhase];
     const stage = this.config.stages[this.currentStageIndex];
     this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '' } satisfies ShooterState);

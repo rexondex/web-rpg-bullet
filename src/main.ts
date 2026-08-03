@@ -28,7 +28,8 @@ async function boot(): Promise<void> {
     $('#pause-help').textContent = config.ui.pauseHelp;
     $('#loading-title').textContent = config.ui.loading;
     $('#guide-title').textContent = config.ui.guideTitle;
-    $('#guide-list').innerHTML = config.ui.guide.map(item => `<div><dt>${item.label}</dt><dd>${item.value}</dd></div>`).join('');
+    const guide = $('#guide-list');
+    guide.replaceChildren(...config.ui.guide.map(item => { const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd'); term.textContent=item.label;description.textContent=item.value;row.append(term,description);return row; }));
     $('#guide-tip').textContent = config.ui.guideTip;
     Object.entries(config.ui.labels).forEach(([id, value]) => document.querySelectorAll<HTMLElement>(`[data-label="${id}"]`).forEach(element => { element.textContent = value; }));
     $('#mobile-focus').textContent = config.ui.mobile.focus;
@@ -61,8 +62,8 @@ async function boot(): Promise<void> {
     $('#loading').classList.add('hidden');
   } catch (error) {
     const issues = error instanceof ShooterContentError ? error.issues : [error instanceof Error ? error.message : String(error)];
-    $('#loading').classList.add('error');
-    $('#loading').innerHTML = `<strong>게임을 시작할 수 없습니다</strong><span>${issues.map(issue => `• ${issue}`).join('<br>')}</span>`;
+    const loading = $('#loading'); loading.classList.add('error'); loading.replaceChildren();
+    const title = document.createElement('strong'), detail = document.createElement('span'); title.textContent='게임을 시작할 수 없습니다';detail.textContent=issues.map(issue=>`• ${issue}`).join('\n');loading.append(title,detail);
   }
 }
 

@@ -34,4 +34,11 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
     expect(result).toContain('grazeRadius');
     expect(result).toContain('missing-stage');
   });
+
+  it('필수 규칙 묶음이 없어도 예외 대신 검증 오류를 반환한다', () => {
+    const invalid = structuredClone(shooterData) as Partial<ShooterProtocol>;
+    delete invalid.rules;
+    expect(() => validateShooterContent(invalid as ShooterProtocol)).not.toThrow();
+    expect(validateShooterContent(invalid as ShooterProtocol).join('\n')).toContain('rules.playfield');
+  });
 });

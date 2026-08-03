@@ -9,8 +9,19 @@ export async function loadShooterContent(url = './game-data/shooter.json'): Prom
   if (!response.ok) throw new Error(`탄막 설정을 불러오지 못했습니다. (${response.status})`);
   const data = await response.json() as ShooterProtocol;
   const issues = validateShooterContent(data);
+  if (!issues.length) issues.push(...await validateAssetFiles(data));
   if (issues.length) throw new ShooterContentError(issues);
   return data;
+}
+
+async function validateAssetFiles(data: ShooterProtocol): Promise<string[]> {
+  const results = await Promise.all(Object.entries(data.assets).map(async ([id, src]) => {
+    try {
+      const response = await fetch(src, { method:'HEAD' });
+      return response.ok ? null : `assets.${id}: 파일을 찾을 수 없습니다. '${src}'`;
+    } catch { return `assets.${id}: 파일에 접근할 수 없습니다. '${src}'`; }
+  }));
+  return results.filter((issue): issue is string => issue !== null);
 }
 
 export function validateShooterContent(data: ShooterProtocol): string[] {
@@ -45,7 +56,7 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
   });
   if (!data.player?.shotLevels?.length) issues.push('player.shotLevels: 사격 단계가 하나 이상 필요합니다.');
   data.player?.shotLevels?.forEach((level, index) => { if (level.power < 1 || level.power > data.player.maxPower || !level.offsets.length || level.damage <= 0) issues.push(`player.shotLevels[${index}]: 파워, 탄 위치 또는 피해량이 유효하지 않습니다.`); });
-  if (data.player && (data.player.spawnX < 0 || data.player.spawnX > data.rules.playfield.width || data.player.spawnBottom < 0 || data.player.spawnBottom > data.rules.playfield.height)) issues.push('player: 시작 위치가 플레이 영역 밖입니다.');
+  if (data.player && data.rules?.playfield && (data.player.spawnX < 0 || data.player.spawnX > data.rules.playfield.width || data.player.spawnBottom < 0 || data.player.spawnBottom > data.rules.playfield.height)) issues.push('player: 시작 위치가 플레이 영역 밖입니다.');
   if (data.boss?.movement && (data.boss.movement.periodMs <= 0 || data.boss.movement.enterSpeed <= 0)) issues.push('boss.movement: 이동 주기와 진입 속도는 0보다 커야 합니다.');
   data.boss?.phases?.forEach((phase, phaseIndex) => {
     if (phase.hp <= 0 || phase.durationMs < 1000) issues.push(`boss.phases[${phaseIndex}]: hp 또는 제한 시간이 유효하지 않습니다.`);
