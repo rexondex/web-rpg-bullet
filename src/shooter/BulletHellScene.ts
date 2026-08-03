@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { BulletPattern, EnemyDefinition, ShooterProtocol, ShooterState, WaveEntry } from './types';
+import type { BulletPattern, EnemyDefinition, PlayerDefinition, ShooterProtocol, ShooterState, WaveEntry } from './types';
 
 type EnemySprite = Phaser.Physics.Arcade.Sprite & { firedAt?: number; definition?: EnemyDefinition; phase?: number; angleSeed?: number };
 type BulletSprite = Phaser.Physics.Arcade.Image & { grazed?: boolean };
@@ -39,12 +39,16 @@ export class BulletHellScene extends Phaser.Scene {
   private patternTimers = new Map<string, number>();
   private lastStateEmitAt = -Infinity;
   private highScoreDirty = false;
+  private selectedPlayerId: string;
 
-  constructor(private config: ShooterProtocol) { super('bullet-hell'); }
+  constructor(private config: ShooterProtocol) { super('bullet-hell'); this.selectedPlayerId = config.game.defaultPlayer; }
+  private get playerConfig(): PlayerDefinition { return this.config.players[this.selectedPlayerId] ?? this.config.players[this.config.game.defaultPlayer]; }
   private get playWidth(): number { return this.config.rules.playfield.width; }
   private get playHeight(): number { return this.config.rules.playfield.height; }
-  private get playerSpawnX(): number { return this.config.player.spawnX; }
-  private get playerSpawnY(): number { return this.playHeight - this.config.player.spawnBottom; }
+  private get playerSpawnX(): number { return this.playerConfig.spawnX; }
+  private get playerSpawnY(): number { return this.playHeight - this.playerConfig.spawnBottom; }
+
+  init(data?: { playerId?:string }): void { if (data?.playerId && this.config.players[data.playerId]) this.selectedPlayerId = data.playerId; }
 
   preload(): void {
     Object.entries(this.config.assets).forEach(([id, src]) => this.load.image(id, src));
@@ -61,7 +65,7 @@ export class BulletHellScene extends Phaser.Scene {
     this.enemyBullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize:pools.enemyBullets, runChildUpdate:false });
     this.enemies = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, maxSize:pools.enemies, runChildUpdate:false });
     this.pickups = this.physics.add.group({ classType: Phaser.Physics.Arcade.Image, maxSize:pools.pickups, runChildUpdate:false });
-    this.player = this.physics.add.sprite(this.playerSpawnX, this.playerSpawnY, this.config.player.texture).setScale(.28).setDepth(8);
+    this.player = this.physics.add.sprite(this.playerSpawnX, this.playerSpawnY, this.playerConfig.texture).setScale(.28).setDepth(8);
     const hitbox = this.config.rules.playerHitboxRadius;
     this.player.setCollideWorldBounds(true).setCircle(hitbox, Math.max(0, this.player.width / 2 - hitbox), Math.max(0, this.player.height / 2 - hitbox));
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -83,8 +87,8 @@ export class BulletHellScene extends Phaser.Scene {
     this.lastShot = 0;
     this.invulnerableUntil = 0;
     this.score = 0;
-    this.lives = this.config.player.lives;
-    this.bombs = this.config.player.bombs;
+    this.lives = this.playerConfig.lives;
+    this.bombs = this.playerConfig.bombs;
     this.power = 1;
     this.graze = 0;
     this.combo = 0;
@@ -123,11 +127,11 @@ export class BulletHellScene extends Phaser.Scene {
     const y = Number(this.cursors.down.isDown || this.keys.down.isDown) - Number(this.cursors.up.isDown || this.keys.up.isDown);
     const movement = new Phaser.Math.Vector2(x, y);
     const focused = this.keys.focus.isDown;
-    if (movement.lengthSq()) movement.normalize().scale(focused ? this.config.player.focusSpeed : this.config.player.speed);
+    if (movement.lengthSq()) movement.normalize().scale(focused ? this.playerConfig.focusSpeed : this.playerConfig.speed);
     body.setVelocity(movement.x, movement.y);
     this.player.setAlpha(time < this.invulnerableUntil && Math.floor(time / 80) % 2 ? .25 : 1);
     (this.children.getByName('hitbox') as Phaser.GameObjects.Arc | null)?.setVisible(focused).setPosition(this.player.x, this.player.y);
-    if (this.keys.shoot.isDown && time - this.lastShot >= this.config.player.shotIntervalMs) this.shoot(time);
+    if (this.keys.shoot.isDown && time - this.lastShot >= this.playerConfig.shotIntervalMs) this.shoot(time);
     if (Phaser.Input.Keyboard.JustDown(this.keys.bomb)) this.useBomb(time);
   }
 
@@ -266,12 +270,12 @@ export class BulletHellScene extends Phaser.Scene {
 
   private shoot(time: number): void {
     this.lastShot = time;
-    const shotLevel = [...this.config.player.shotLevels].sort((a,b) => b.power - a.power).find(level => this.power >= level.power) ?? this.config.player.shotLevels[0];
+    const shotLevel = [...this.playerConfig.shotLevels].sort((a,b) => b.power - a.power).find(level => this.power >= level.power) ?? this.playerConfig.shotLevels[0];
     shotLevel.offsets.forEach((offset, index) => {
       const shot = this.playerShots.get(this.player.x + offset, this.player.y - 26, 'player-shot') as Phaser.Physics.Arcade.Image | null;
       if (!shot) return;
       shot.enableBody(true, this.player.x + offset, this.player.y - 26, true, true).setTexture('player-shot').setDepth(5).setTint(index % 2 ? 0x8fffff : 0xffffff);
-      const shotBody = shot.body as Phaser.Physics.Arcade.Body; shotBody.setSize(6, 20, true).setVelocity(offset * (shotLevel.velocityXScale ?? 0), -this.config.player.shotSpeed);
+      const shotBody = shot.body as Phaser.Physics.Arcade.Body; shotBody.setSize(6, 20, true).setVelocity(offset * (shotLevel.velocityXScale ?? 0), -this.playerConfig.shotSpeed);
       shot.setData('damage', shotLevel.damage);
     });
   }
@@ -363,7 +367,7 @@ export class BulletHellScene extends Phaser.Scene {
 
   private collectPickup(_playerObject: Phaser.Types.Physics.Arcade.GameObjectWithBody, pickupObject: Phaser.Types.Physics.Arcade.GameObjectWithBody): void {
     const pickup = pickupObject as Phaser.Physics.Arcade.Image;
-    pickup.disableBody(true, true); this.power = Math.min(this.config.player.maxPower, this.power + 1); this.addScore(this.config.scoring.pickup);
+    pickup.disableBody(true, true); this.power = Math.min(this.playerConfig.maxPower, this.power + 1); this.addScore(this.config.scoring.pickup);
   }
 
   private addScore(amount: number): void {
@@ -412,7 +416,7 @@ export class BulletHellScene extends Phaser.Scene {
     this.lastStateEmitAt = this.time.now;
     const phase = this.config.boss.phases[this.bossPhase];
     const stage = this.config.stages[this.currentStageIndex];
-    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '' } satisfies ShooterState);
+    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '', playerId:this.selectedPlayerId, playerName:this.playerConfig.name } satisfies ShooterState);
   }
 
   private drawStage(): void {

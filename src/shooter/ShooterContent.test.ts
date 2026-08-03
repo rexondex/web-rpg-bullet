@@ -41,4 +41,10 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
     expect(() => validateShooterContent(invalid as ShooterProtocol)).not.toThrow();
     expect(validateShooterContent(invalid as ShooterProtocol).join('\n')).toContain('rules.playfield');
   });
+
+  it('등록되지 않은 기본 캐릭터를 검출한다', () => {
+    const invalid = structuredClone(shooterData) as ShooterProtocol;
+    invalid.game.defaultPlayer = 'missing-player';
+    expect(validateShooterContent(invalid).join('\n')).toContain('missing-player');
+  });
 });

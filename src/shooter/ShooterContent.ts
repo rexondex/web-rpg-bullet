@@ -34,7 +34,14 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
   if (!data.scoring || Object.values(data.scoring).some(value => value < 0)) issues.push('scoring: 점수 값은 0 이상이어야 합니다.');
   if (!data.ui?.stageClear || !data.ui?.gameOver || !data.ui?.labels || !data.ui?.messages) issues.push('ui: 결과, 라벨, 메시지 문구가 필요합니다.');
   if (!data.stages?.length) issues.push('stages: 스테이지가 하나 이상 필요합니다.');
-  if (!data.assets?.[data.player?.texture]) issues.push(`player.texture: 없는 에셋 '${data.player?.texture}'`);
+  if (!data.players?.[data.game?.defaultPlayer]) issues.push(`game.defaultPlayer: 없는 캐릭터 '${data.game?.defaultPlayer}'`);
+  Object.entries(data.players ?? {}).forEach(([id, player]) => {
+    if (!data.assets?.[player.texture]) issues.push(`players.${id}.texture: 없는 에셋 '${player.texture}'`);
+    if (player.portrait && !data.assets?.[player.portrait]) issues.push(`players.${id}.portrait: 없는 에셋 '${player.portrait}'`);
+    if (!player.shotLevels?.length) issues.push(`players.${id}.shotLevels: 사격 단계가 하나 이상 필요합니다.`);
+    player.shotLevels?.forEach((level,index)=>{if(level.power<1||level.power>player.maxPower||!level.offsets.length||level.damage<=0)issues.push(`players.${id}.shotLevels[${index}]: 파워, 탄 위치 또는 피해량이 유효하지 않습니다.`);});
+    if (data.rules?.playfield && (player.spawnX<0||player.spawnX>data.rules.playfield.width||player.spawnBottom<0||player.spawnBottom>data.rules.playfield.height)) issues.push(`players.${id}: 시작 위치가 플레이 영역 밖입니다.`);
+  });
   if (!data.assets?.[data.boss?.texture]) issues.push(`boss.texture: 없는 에셋 '${data.boss?.texture}'`);
   const stageIds = new Set<string>();
   data.stages?.forEach((stage, stageIndex) => {
@@ -54,9 +61,6 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
     if (enemy.pickupChance < 0 || enemy.pickupChance > 1) issues.push(`enemies.${id}.pickupChance: 0~1이어야 합니다.`);
     validatePattern(enemy.pattern, `enemies.${id}.pattern`, issues);
   });
-  if (!data.player?.shotLevels?.length) issues.push('player.shotLevels: 사격 단계가 하나 이상 필요합니다.');
-  data.player?.shotLevels?.forEach((level, index) => { if (level.power < 1 || level.power > data.player.maxPower || !level.offsets.length || level.damage <= 0) issues.push(`player.shotLevels[${index}]: 파워, 탄 위치 또는 피해량이 유효하지 않습니다.`); });
-  if (data.player && data.rules?.playfield && (data.player.spawnX < 0 || data.player.spawnX > data.rules.playfield.width || data.player.spawnBottom < 0 || data.player.spawnBottom > data.rules.playfield.height)) issues.push('player: 시작 위치가 플레이 영역 밖입니다.');
   if (data.boss?.movement && (data.boss.movement.periodMs <= 0 || data.boss.movement.enterSpeed <= 0)) issues.push('boss.movement: 이동 주기와 진입 속도는 0보다 커야 합니다.');
   data.boss?.phases?.forEach((phase, phaseIndex) => {
     if (phase.hp <= 0 || phase.durationMs < 1000) issues.push(`boss.phases[${phaseIndex}]: hp 또는 제한 시간이 유효하지 않습니다.`);

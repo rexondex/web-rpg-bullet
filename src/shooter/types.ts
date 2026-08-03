@@ -51,6 +51,25 @@ export interface ShooterDialogueLine {
   side?: 'left' | 'right';
 }
 
+export interface PlayerDefinition {
+  name: string;
+  description: string;
+  portrait?: string;
+  texture: string;
+  speed: number;
+  focusSpeed: number;
+  lives: number;
+  bombs: number;
+  shotIntervalMs: number;
+  shotSpeed: number;
+  spawnX: number;
+  spawnBottom: number;
+  maxPower: number;
+  shotName: string;
+  bombName: string;
+  shotLevels: { power:number; offsets:number[]; damage:number; velocityXScale?:number }[];
+}
+
 export interface BossPhase {
   name: string;
   hp: number;
@@ -60,7 +79,7 @@ export interface BossPhase {
 
 export interface ShooterProtocol {
   protocolVersion: 1;
-  game: { id: string; title: string; subtitle: string; version: string };
+  game: { id: string; title: string; subtitle: string; version: string; defaultPlayer: string };
   rules: {
     playfield: { width:number; height:number };
     pools: { playerShots:number; enemyBullets:number; enemies:number; pickups:number };
@@ -108,24 +127,15 @@ export interface ShooterProtocol {
     startBattle: string;
     dialogueHint: string;
     retryHint: string;
+    title: {
+      kicker:string; heading:string; description:string; selectCharacter:string; controls:string; leaderboard:string;
+      noScores:string; start:string; quickRetry:string; returnToTitle:string; clearScores:string;
+    };
     messages: { miss:string; respawn:string; lastLife:string; bomb:string; bombCleared:string; bossWarning:string };
   };
   stages: ShooterStage[];
   dialogues: Record<string, ShooterDialogueLine[]>;
-  player: {
-    name: string;
-    texture: string;
-    speed: number;
-    focusSpeed: number;
-    lives: number;
-    bombs: number;
-    shotIntervalMs: number;
-    shotSpeed: number;
-    spawnX: number;
-    spawnBottom: number;
-    maxPower: number;
-    shotLevels: { power:number; offsets:number[]; damage:number; velocityXScale?:number }[];
-  };
+  players: Record<string, PlayerDefinition>;
   enemies: Record<string, EnemyDefinition>;
   boss: { name: string; texture: string; radius: number; movement:{ spawnX:number; spawnY:number; enterY:number; enterSpeed:number; amplitudeX:number; periodMs:number }; phases: BossPhase[] };
   assets: Record<string, string>;
@@ -148,9 +158,21 @@ export interface ShooterState {
   stageNumber: number;
   stageCount: number;
   stageName: string;
+  playerId: string;
+  playerName: string;
 }
 
 export interface DialogueRequest {
   lines: ShooterDialogueLine[];
   done: () => void;
+}
+
+export interface ScoreEntry {
+  id: string;
+  score: number;
+  graze: number;
+  cleared: boolean;
+  playerId: string;
+  playerName: string;
+  recordedAt: string;
 }

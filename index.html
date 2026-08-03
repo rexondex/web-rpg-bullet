@@ -12,7 +12,7 @@
       <div><span id="eyebrow" class="eyebrow"></span><h1 id="game-title"></h1><p id="game-subtitle"></p></div>
       <button id="pause-button" type="button">P · 일시정지</button>
     </header>
-    <section class="cabinet" aria-label="탄막 슈팅 게임">
+    <section id="game-shell" class="cabinet title-mode" aria-label="탄막 슈팅 게임">
       <div class="playfield">
         <div id="game"></div>
         <div class="stage-label"><span id="stage-progress">STAGE 1 / 2</span><strong id="stage-name">달빛 초원</strong></div>
@@ -38,7 +38,15 @@
       </aside>
     </section>
   </main>
-  <section id="result-screen" class="result-screen hidden" role="dialog" aria-modal="true"><div><span id="result-kicker"></span><h2 id="result-title"></h2><dl><div><dt data-label="score"></dt><dd id="result-score"></dd></div><div><dt data-label="graze"></dt><dd id="result-graze"></dd></div><div><dt data-label="highScore"></dt><dd id="result-high"></dd></div></dl><button id="restart" type="button"></button><small id="retry-hint"></small></div></section>
+  <section id="title-screen" class="title-screen hidden" aria-label="게임 시작 화면">
+    <div class="title-layout">
+      <header><span id="title-kicker"></span><h2 id="title-heading"></h2><p id="title-description"></p></header>
+      <section class="character-section"><h3 id="select-title"></h3><div id="character-select" class="character-select"></div><button id="start-game" class="start-game" type="button"></button></section>
+      <section class="title-guide-card"><h3 id="controls-title"></h3><dl id="title-guide"></dl></section>
+      <section class="leaderboard-card"><div><h3 id="leaderboard-title"></h3><button id="clear-scores" type="button"></button></div><div id="leaderboard-list" class="leaderboard-list"></div></section>
+    </div>
+  </section>
+  <section id="result-screen" class="result-screen hidden" role="dialog" aria-modal="true"><div><span id="result-kicker"></span><h2 id="result-title"></h2><dl><div><dt data-label="score"></dt><dd id="result-score"></dd></div><div><dt data-label="graze"></dt><dd id="result-graze"></dd></div><div><dt data-label="highScore"></dt><dd id="result-high"></dd></div></dl><div class="result-actions"><button id="restart" type="button"></button><button id="return-title" type="button"></button></div><small id="retry-hint"></small></div></section>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
