@@ -226,7 +226,8 @@ export class BulletHellScene extends Phaser.Scene {
     boss.enableBody(true, movement.spawnX, movement.spawnY, true, true).setTexture(this.config.boss.texture).setScale(.24).setDepth(6).setTint(0xffd8ff);
     boss.setCircle(this.config.boss.radius, Math.max(0, boss.width / 2 - this.config.boss.radius), Math.max(0, boss.height / 2 - this.config.boss.radius));
     (boss.body as Phaser.Physics.Arcade.Body).setVelocity(0, movement.enterSpeed);
-    boss.phase = -1;
+    boss.phase = -1; boss.definition = undefined;
+    this.bossPhase = -1; this.bossPhaseHp = 0; this.bossPhaseTransitioning = true;
     this.boss = boss;
     this.events.emit('message', { title:this.config.boss.name, text:this.config.ui.messages.bossWarning, duration:2200 });
     this.time.delayedCall(1200, () => this.startBossPhase(0, time + 1200));
@@ -293,7 +294,8 @@ export class BulletHellScene extends Phaser.Scene {
   private hitEnemy(shotObject: Phaser.Types.Physics.Arcade.GameObjectWithBody, enemyObject: Phaser.Types.Physics.Arcade.GameObjectWithBody): void {
     const shot = shotObject as Phaser.Physics.Arcade.Image;
     const enemy = enemyObject as EnemySprite;
-    if (!shot.active || !enemy.active || (enemy === this.boss && this.bossPhaseTransitioning)) return;
+    if (!shot.active || !enemy.active) return;
+    if (enemy === this.boss && (this.bossPhaseTransitioning || this.bossPhase < 0 || !this.config.boss.phases[this.bossPhase])) return;
     shot.disableBody(true, true);
     const hp = Number(enemy.getData('hp')) - Number(shot.getData('damage') ?? 1);
     enemy.setData('hp', hp);
@@ -313,8 +315,9 @@ export class BulletHellScene extends Phaser.Scene {
 
   private finishBossPhase(captured: boolean, time: number): void {
     if (!this.boss?.active || this.bossPhaseTransitioning) return;
-    this.bossPhaseTransitioning = true;
     const phase = this.config.boss.phases[this.bossPhase];
+    if (!phase) return;
+    this.bossPhaseTransitioning = true;
     const remaining = Math.max(0, phase.durationMs - (time - this.bossPhaseStarted));
     const scoring = this.config.scoring;
     this.addScore((captured ? scoring.bossCapture : scoring.bossTimeout) + Math.floor(remaining * scoring.bossTimeMultiplier));
