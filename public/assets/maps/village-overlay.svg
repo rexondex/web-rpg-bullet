@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <g stroke="#3d3028" stroke-width="6">
+    <path fill="#b8634f" d="M95 118 210 45l115 73v122H95z"/><path fill="#e6c990" d="M115 125h190v115H115z"/>
+    <path fill="#567b8b" d="m350 120 120-76 120 76v126H350z"/><path fill="#d9c58d" d="M372 128h196v118H372z"/>
+    <path fill="#81536f" d="m650 112 105-64 105 64v128H650z"/><path fill="#dfc48e" d="M670 120h170v120H670z"/>
+  </g>
+  <g fill="#513c2d"><rect x="185" y="170" width="48" height="70" rx="4"/><rect x="447" y="165" width="48" height="81" rx="4"/><rect x="730" y="170" width="48" height="70" rx="4"/></g>
+  <g fill="#9fd2df" stroke="#f5e9b8" stroke-width="5"><rect x="130" y="145" width="38" height="35"/><rect x="250" y="145" width="38" height="35"/><rect x="395" y="145" width="38" height="35"/><rect x="510" y="145" width="38" height="35"/><rect x="685" y="145" width="35" height="35"/><rect x="790" y="145" width="35" height="35"/></g>
+  <g fill="#315b42"><circle cx="65" cy="185" r="38"/><circle cx="895" cy="175" r="44"/><circle cx="75" cy="400" r="32"/><circle cx="885" cy="405" r="35"/></g>
+  <text x="470" y="105" text-anchor="middle" fill="#fff2bd" font-size="18" font-family="sans-serif">별빛 여관</text>
+</svg>

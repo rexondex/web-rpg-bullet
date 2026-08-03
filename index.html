@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#080b18" />
+  <title>Starfall Barrage</title>
+</head>
+<body>
+  <main id="app">
+    <header class="masthead">
+      <div><span class="eyebrow">DATA-DRIVEN BULLET HELL</span><h1 id="game-title">STARFALL BARRAGE</h1><p id="game-subtitle">불러오는 중…</p></div>
+      <button id="pause-button" type="button">P · 일시정지</button>
+    </header>
+    <section class="cabinet" aria-label="탄막 슈팅 게임">
+      <div class="playfield">
+        <div id="game"></div>
+        <div id="boss-hud" class="boss-hud hidden"><div><strong id="boss-name"></strong><span id="boss-time">0.0</span></div><small id="boss-phase"></small><div class="boss-meter"><i id="boss-hp"></i></div></div>
+        <div id="stage-message" class="stage-message hidden"><strong id="message-title"></strong><span id="message-text"></span></div>
+        <div id="pause-layer" class="pause-layer hidden"><strong>PAUSED</strong><span>P 또는 버튼으로 계속</span></div>
+        <div id="mobile-controls" class="mobile-controls">
+          <div class="dpad"><button data-key="up">▲</button><button data-key="left">◀</button><button data-key="down">▼</button><button data-key="right">▶</button></div>
+          <div class="mobile-actions"><button data-key="focus">저속</button><button data-key="shoot">SHOT</button><button class="bomb" data-key="bomb">BOMB</button></div>
+        </div>
+        <div id="loading" class="loading"><strong>탄막 패턴을 전개하는 중</strong><span>game-data/shooter.json</span></div>
+      </div>
+      <aside class="side-panel">
+        <section class="logo-card"><span>THE FIRST SPELL</span><strong>星降る<br/>弾幕</strong><p>STARFALL BARRAGE</p></section>
+        <section class="score-card"><label>HI-SCORE</label><strong id="high-score">000000000</strong><label>SCORE</label><strong id="score">000000000</strong></section>
+        <section class="resource-card"><div><label>PLAYER</label><span id="lives"></span></div><div><label>BOMB</label><span id="bombs"></span></div><div><label>POWER</label><b id="power">1 / 4</b><div class="power-meter"><i id="power-bar"></i></div></div></section>
+        <section class="metric-card"><div><label>GRAZE</label><strong id="graze">0</strong></div><div><label>CHAIN</label><strong id="combo">—</strong></div></section>
+        <section class="guide-card"><h2>조작</h2><dl><div><dt>이동</dt><dd>방향키 / WASD</dd></div><div><dt>사격</dt><dd>Z 누르고 있기</dd></div><div><dt>저속·히트박스</dt><dd>Shift</dd></div><div><dt>폭탄</dt><dd>X</dd></div><div><dt>일시정지</dt><dd>P</dd></div></dl><p>탄환에 가까이 접근하면 그레이즈 점수와 체인이 상승합니다.</p></section>
+      </aside>
+    </section>
+  </main>
+  <section id="result-screen" class="result-screen hidden" role="dialog" aria-modal="true"><div><span id="result-kicker">STAGE CLEAR</span><h2 id="result-title"></h2><dl><div><dt>SCORE</dt><dd id="result-score"></dd></div><div><dt>GRAZE</dt><dd id="result-graze"></dd></div><div><dt>HI-SCORE</dt><dd id="result-high"></dd></div></dl><button id="restart" type="button">다시 도전</button></div></section>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

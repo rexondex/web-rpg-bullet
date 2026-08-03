@@ -1,0 +1,99 @@
+{
+  "protocolVersion": 1,
+  "game": {
+    "id": "starfall-barrage",
+    "title": "STARFALL BARRAGE",
+    "subtitle": "별의 유적에서 펼쳐지는 데이터 기반 탄막 슈팅",
+    "version": "0.2.0"
+  },
+  "stage": {
+    "name": "STAGE 1 · 별빛 유적",
+    "background": "ruins_background",
+    "width": 640,
+    "height": 720,
+    "bossAtMs": 31000,
+    "waves": [
+      { "atMs": 1200, "enemy": "wisp", "count": 5, "formation": "v", "spacing": 82 },
+      { "atMs": 6000, "enemy": "fairy", "count": 6, "formation": "sweep-left", "spacing": 92 },
+      { "atMs": 11200, "enemy": "wisp", "count": 7, "formation": "line", "spacing": 76 },
+      { "atMs": 16800, "enemy": "fairy", "count": 6, "formation": "sweep-right", "spacing": 92 },
+      { "atMs": 22200, "enemy": "sentinel", "count": 3, "formation": "v", "spacing": 150 }
+    ]
+  },
+  "player": {
+    "name": "별의 여행자",
+    "texture": "hero",
+    "speed": 310,
+    "focusSpeed": 145,
+    "lives": 3,
+    "bombs": 3,
+    "shotIntervalMs": 88,
+    "shotSpeed": 720
+  },
+  "enemies": {
+    "wisp": {
+      "hp": 12,
+      "speed": 58,
+      "radius": 14,
+      "score": 1200,
+      "color": "#70e8ff",
+      "pattern": { "type": "aimed", "intervalMs": 1300, "bulletSpeed": 160, "count": 1, "waves": 2, "color": "#59dfff" }
+    },
+    "fairy": {
+      "hp": 18,
+      "speed": 52,
+      "radius": 16,
+      "score": 1800,
+      "color": "#ff72c7",
+      "pattern": { "type": "fan", "intervalMs": 1550, "bulletSpeed": 145, "count": 5, "spread": 0.17, "color": "#ff62bb" }
+    },
+    "sentinel": {
+      "hp": 46,
+      "speed": 34,
+      "radius": 22,
+      "score": 5000,
+      "color": "#ffd063",
+      "pattern": { "type": "radial", "intervalMs": 1050, "bulletSpeed": 125, "count": 12, "spin": 0.14, "color": "#ffc857" }
+    }
+  },
+  "boss": {
+    "name": "성좌의 파수꾼 셀레네",
+    "texture": "boss_selene",
+    "radius": 34,
+    "phases": [
+      {
+        "name": "성부 「쌍성의 윤무」",
+        "hp": 620,
+        "durationMs": 30000,
+        "patterns": [
+          { "type": "spiral", "intervalMs": 220, "bulletSpeed": 138, "count": 10, "spin": 1.15, "color": "#67dfff" },
+          { "type": "aimed", "intervalMs": 1150, "bulletSpeed": 205, "count": 1, "waves": 3, "color": "#fff07a" }
+        ]
+      },
+      {
+        "name": "월부 「초승달의 회랑」",
+        "hp": 820,
+        "durationMs": 34000,
+        "patterns": [
+          { "type": "fan", "intervalMs": 420, "bulletSpeed": 165, "count": 9, "spread": 0.13, "spin": 0.2, "color": "#ff6ec7" },
+          { "type": "radial", "intervalMs": 950, "bulletSpeed": 108, "count": 22, "spin": -0.45, "color": "#8c74ff" }
+        ]
+      },
+      {
+        "name": "종언 「별이 지는 밤」",
+        "hp": 1050,
+        "durationMs": 40000,
+        "patterns": [
+          { "type": "spiral", "intervalMs": 155, "bulletSpeed": 155, "count": 13, "spin": 1.7, "color": "#ff5d75" },
+          { "type": "rain", "intervalMs": 700, "bulletSpeed": 185, "count": 8, "color": "#77efff" },
+          { "type": "aimed", "intervalMs": 1250, "bulletSpeed": 245, "count": 1, "waves": 5, "color": "#fff08a" }
+        ]
+      }
+    ]
+  },
+  "assets": {
+    "hero": "./assets/characters/hero.svg",
+    "boss_selene": "./assets/portraits/selene-painted-v1.png",
+    "ruins_background": "./assets/maps/ruins-painted-v1.png"
+  }
+}
