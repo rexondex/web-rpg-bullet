@@ -11,13 +11,30 @@ export interface BulletPattern {
   waves?: number;
 }
 
+export type MovementDefinition =
+  | { type:'linear'; velocityX?:number; velocityY:number }
+  | { type:'sine'; centerX:number; amplitudeX:number; periodMs:number; enterY:number; enterSpeed:number }
+  | { type:'stationary'; x:number; y:number };
+
+export type FormationDefinition =
+  | { type:'line'|'v'; spacing?:number }
+  | { type:'sweep'; direction:'left'|'right'; spacing?:number; stepY?:number };
+
+export type PlayerShotPattern =
+  | { type:'parallel'; offsets:number[]; damage:number; velocityXScale?:number }
+  | { type:'fan'; count:number; spread:number; damage:number };
+
+export type BombBehavior = { type:'clear-and-damage'; damage:number; invulnerabilityMs:number } | { type:'clear-only'; invulnerabilityMs:number };
+
 export interface EnemyDefinition {
   hp: number;
   speed: number;
   radius: number;
   score: number;
   color: string;
-  pattern: BulletPattern;
+  texture?: string;
+  movement?: MovementDefinition;
+  patterns: BulletPattern[];
   pickupChance: number;
 }
 
@@ -25,8 +42,7 @@ export interface WaveEntry {
   atMs: number;
   enemy: string;
   count: number;
-  formation: 'line' | 'v' | 'sweep-left' | 'sweep-right';
-  spacing?: number;
+  formation: FormationDefinition;
 }
 
 export interface ShooterStage {
@@ -40,7 +56,7 @@ export interface ShooterStage {
   introDialogue?: string;
   clearDialogue?: string;
   bossDialogue?: string;
-  hasBoss?: boolean;
+  bossId?: string;
   nextStage?: string;
 }
 
@@ -67,7 +83,8 @@ export interface PlayerDefinition {
   maxPower: number;
   shotName: string;
   bombName: string;
-  shotLevels: { power:number; offsets:number[]; damage:number; velocityXScale?:number }[];
+  shotLevels: ({ power:number } & PlayerShotPattern)[];
+  bomb: BombBehavior;
 }
 
 export interface BossPhase {
@@ -77,17 +94,26 @@ export interface BossPhase {
   patterns: BulletPattern[];
 }
 
+export interface BossDefinition {
+  name: string;
+  texture: string;
+  radius: number;
+  tint?: string;
+  spawn: { x:number; y:number };
+  movement: MovementDefinition;
+  phases: BossPhase[];
+}
+
 export interface ShooterProtocol {
-  protocolVersion: 1;
-  game: { id: string; title: string; subtitle: string; version: string; defaultPlayer: string };
+  protocolVersion: 2;
+  capabilities: string[];
+  game: { id: string; title: string; subtitle: string; version: string; defaultPlayer: string; entryStage: string };
   rules: {
     playfield: { width:number; height:number };
     pools: { playerShots:number; enemyBullets:number; enemies:number; pickups:number };
     playerHitboxRadius: number;
     grazeRadius: number;
     hitInvulnerabilityMs: number;
-    bombInvulnerabilityMs: number;
-    bombDamage: number;
     deathPowerLoss: number;
     respawnBombs: number;
     bulletCullMargin: number;
@@ -126,6 +152,7 @@ export interface ShooterProtocol {
     nextDialogue: string;
     startBattle: string;
     dialogueHint: string;
+    dialogue?: { showProgress: boolean };
     retryHint: string;
     title: {
       kicker:string; heading:string; description:string; selectCharacter:string; controls:string; leaderboard:string;
@@ -137,7 +164,7 @@ export interface ShooterProtocol {
   dialogues: Record<string, ShooterDialogueLine[]>;
   players: Record<string, PlayerDefinition>;
   enemies: Record<string, EnemyDefinition>;
-  boss: { name: string; texture: string; radius: number; movement:{ spawnX:number; spawnY:number; enterY:number; enterSpeed:number; amplitudeX:number; periodMs:number }; phases: BossPhase[] };
+  bosses: Record<string, BossDefinition>;
   assets: Record<string, string>;
   persistence?: {
     autosaveIntervalMs: number;
@@ -157,6 +184,7 @@ export interface ShooterEntityState {
   tint?: number;
   grazed?: boolean;
   firedAgoMs?: number;
+  patternElapsedMs?: Record<string,number>;
   angleSeed?: number;
 }
 
@@ -170,7 +198,7 @@ export interface ShooterRuntimeState {
   waveIndex: number;
   bossTriggered: boolean;
   player: { x:number; y:number; score:number; lives:number; bombs:number; power:number; graze:number; combo:number; comboRemainingMs:number; invulnerableRemainingMs:number };
-  boss: { phase:number; hp:number; phaseElapsedMs:number; patternElapsedMs:Record<string,number> } | null;
+  boss: { definitionId:string; phase:number; hp:number; phaseElapsedMs:number; patternElapsedMs:Record<string,number> } | null;
   entities: ShooterEntityState[];
 }
 

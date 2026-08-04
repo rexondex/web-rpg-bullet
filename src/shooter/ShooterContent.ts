@@ -1,4 +1,5 @@
 import type { ShooterProtocol } from './types';
+import { collectRequiredCapabilities, ENGINE_CAPABILITIES } from './ProtocolCapabilities';
 
 export class ShooterContentError extends Error {
   constructor(public issues: string[]) { super(`탄막 게임 설정 오류 ${issues.length}개`); }
@@ -26,7 +27,10 @@ async function validateAssetFiles(data: ShooterProtocol): Promise<string[]> {
 
 export function validateShooterContent(data: ShooterProtocol): string[] {
   const issues: string[] = [];
-  if (data.protocolVersion !== 1) issues.push('protocolVersion: 지원 버전은 1입니다.');
+  if (data.protocolVersion !== 2) issues.push('protocolVersion: 지원 버전은 2입니다.');
+  const declared=new Set(data.capabilities??[]),required=collectRequiredCapabilities(data);
+  declared.forEach(capability=>{if(!ENGINE_CAPABILITIES.has(capability))issues.push(`capabilities: 엔진이 지원하지 않는 기능 '${capability}'`);});
+  required.forEach(capability=>{if(!declared.has(capability))issues.push(`capabilities: 데이터가 사용하는 기능 '${capability}' 선언이 필요합니다.`);});
   if (!data.game?.id || !data.game?.title) issues.push('game.id와 game.title은 필수입니다.');
   if (!data.rules?.playfield || data.rules.playfield.width < 320 || data.rules.playfield.height < 320) issues.push('rules.playfield: 너비와 높이는 320 이상이어야 합니다.');
   if (!data.rules?.pools || Object.values(data.rules.pools).some(value => value < 1)) issues.push('rules.pools: 모든 오브젝트 풀 크기는 1 이상이어야 합니다.');
@@ -40,15 +44,16 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
     if (!data.assets?.[player.texture]) issues.push(`players.${id}.texture: 없는 에셋 '${player.texture}'`);
     if (player.portrait && !data.assets?.[player.portrait]) issues.push(`players.${id}.portrait: 없는 에셋 '${player.portrait}'`);
     if (!player.shotLevels?.length) issues.push(`players.${id}.shotLevels: 사격 단계가 하나 이상 필요합니다.`);
-    player.shotLevels?.forEach((level,index)=>{if(level.power<1||level.power>player.maxPower||!level.offsets.length||level.damage<=0)issues.push(`players.${id}.shotLevels[${index}]: 파워, 탄 위치 또는 피해량이 유효하지 않습니다.`);});
+    player.shotLevels?.forEach((level,index)=>{if(level.power<1||level.power>player.maxPower||level.damage<=0||(level.type==='parallel'&&!level.offsets.length)||(level.type==='fan'&&(level.count<1||level.spread<=0)))issues.push(`players.${id}.shotLevels[${index}]: 사격 전략의 파워, 탄 수 또는 피해량이 유효하지 않습니다.`);});
+    if(!player.bomb||player.bomb.invulnerabilityMs<0)issues.push(`players.${id}.bomb: 폭탄 전략이 필요합니다.`);
     if (data.rules?.playfield && (player.spawnX<0||player.spawnX>data.rules.playfield.width||player.spawnBottom<0||player.spawnBottom>data.rules.playfield.height)) issues.push(`players.${id}: 시작 위치가 플레이 영역 밖입니다.`);
   });
-  if (!data.assets?.[data.boss?.texture]) issues.push(`boss.texture: 없는 에셋 '${data.boss?.texture}'`);
   const stageIds = new Set<string>();
   data.stages?.forEach((stage, stageIndex) => {
     if (stageIds.has(stage.id)) issues.push(`stages[${stageIndex}].id: 중복 ID '${stage.id}'`); else stageIds.add(stage.id);
     if (stage.width !== data.rules?.playfield.width || stage.height !== data.rules?.playfield.height) issues.push(`stages[${stageIndex}]: rules.playfield 크기와 일치해야 합니다.`);
     if (!data.assets?.[stage.background]) issues.push(`stages[${stageIndex}].background: 없는 에셋 '${stage.background}'`);
+    if(stage.bossId&&!data.bosses?.[stage.bossId])issues.push(`stages[${stageIndex}].bossId: 없는 보스 '${stage.bossId}'`);
     [stage.introDialogue, stage.clearDialogue, stage.bossDialogue].filter(Boolean).forEach(dialogueId => { if (!data.dialogues?.[dialogueId!]) issues.push(`stages[${stageIndex}]: 없는 대화 '${dialogueId}'`); });
     stage.waves.forEach((wave, waveIndex) => {
       if (!data.enemies?.[wave.enemy]) issues.push(`stages[${stageIndex}].waves[${waveIndex}]: 없는 적 '${wave.enemy}'`);
@@ -60,13 +65,17 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
   Object.entries(data.enemies ?? {}).forEach(([id, enemy]) => {
     if (enemy.hp <= 0 || enemy.speed < 0) issues.push(`enemies.${id}: hp와 speed가 유효하지 않습니다.`);
     if (enemy.pickupChance < 0 || enemy.pickupChance > 1) issues.push(`enemies.${id}.pickupChance: 0~1이어야 합니다.`);
-    validatePattern(enemy.pattern, `enemies.${id}.pattern`, issues);
+    if(!enemy.patterns?.length)issues.push(`enemies.${id}.patterns: 탄막이 하나 이상 필요합니다.`);
+    enemy.patterns?.forEach((pattern,index)=>validatePattern(pattern,`enemies.${id}.patterns[${index}]`,issues));
+    if(enemy.texture&&!data.assets?.[enemy.texture])issues.push(`enemies.${id}.texture: 없는 에셋 '${enemy.texture}'`);
   });
-  if (data.boss?.movement && (data.boss.movement.periodMs <= 0 || data.boss.movement.enterSpeed <= 0)) issues.push('boss.movement: 이동 주기와 진입 속도는 0보다 커야 합니다.');
-  data.boss?.phases?.forEach((phase, phaseIndex) => {
-    if (phase.hp <= 0 || phase.durationMs < 1000) issues.push(`boss.phases[${phaseIndex}]: hp 또는 제한 시간이 유효하지 않습니다.`);
-    phase.patterns.forEach((pattern, patternIndex) => validatePattern(pattern, `boss.phases[${phaseIndex}].patterns[${patternIndex}]`, issues));
+  Object.entries(data.bosses??{}).forEach(([id,boss])=>{
+    if(!data.assets?.[boss.texture])issues.push(`bosses.${id}.texture: 없는 에셋 '${boss.texture}'`);
+    if(!boss.phases?.length)issues.push(`bosses.${id}.phases: 페이즈가 하나 이상 필요합니다.`);
+    if(boss.movement?.type==='sine'&&(boss.movement.periodMs<=0||boss.movement.enterSpeed<=0))issues.push(`bosses.${id}.movement: 이동 주기와 진입 속도는 0보다 커야 합니다.`);
+    boss.phases?.forEach((phase,phaseIndex)=>{if(phase.hp<=0||phase.durationMs<1000)issues.push(`bosses.${id}.phases[${phaseIndex}]: hp 또는 제한 시간이 유효하지 않습니다.`);phase.patterns?.forEach((pattern,patternIndex)=>validatePattern(pattern,`bosses.${id}.phases[${phaseIndex}].patterns[${patternIndex}]`,issues));});
   });
+  if(data.game?.entryStage&&!stageIds.has(data.game.entryStage))issues.push(`game.entryStage: 없는 스테이지 '${data.game.entryStage}'`);
   return issues;
 }
 

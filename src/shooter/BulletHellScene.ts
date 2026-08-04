@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { BulletPattern, EnemyDefinition, PlayerDefinition, ShooterProtocol, ShooterRuntimeState, ShooterState, WaveEntry } from './types';
+import type { BossDefinition, BulletPattern, EnemyDefinition, FormationDefinition, MovementDefinition, PlayerDefinition, ShooterProtocol, ShooterRuntimeState, ShooterState, WaveEntry } from './types';
 
 type EnemySprite = Phaser.Physics.Arcade.Sprite & { firedAt?: number; definition?: EnemyDefinition; definitionId?: string; phase?: number; angleSeed?: number };
 type BulletSprite = Phaser.Physics.Arcade.Image & { grazed?: boolean };
@@ -30,6 +30,7 @@ export class BulletHellScene extends Phaser.Scene {
   private cinematic = false;
   private stageBackground!: Phaser.GameObjects.Image;
   private boss: EnemySprite | null = null;
+  private currentBossId = '';
   private bossPhase = -1;
   private bossPhaseHp = 0;
   private bossPhaseStarted = 0;
@@ -48,6 +49,7 @@ export class BulletHellScene extends Phaser.Scene {
   private get playHeight(): number { return this.config.rules.playfield.height; }
   private get playerSpawnX(): number { return this.playerConfig.spawnX; }
   private get playerSpawnY(): number { return this.playHeight - this.playerConfig.spawnBottom; }
+  private get bossConfig(): BossDefinition | undefined { return this.config.bosses[this.currentBossId]; }
 
   init(data?: { playerId?:string; runtime?:ShooterRuntimeState }): void {
     this.pendingRuntime = data?.runtime;
@@ -88,7 +90,7 @@ export class BulletHellScene extends Phaser.Scene {
     this.highScore = Number(localStorage.getItem(`${this.config.game.id}:high-score`) ?? 0);
     this.time.addEvent({ delay:2000, loop:true, callback:()=>this.persistHighScore() });
     const runtime = this.pendingRuntime; this.pendingRuntime = undefined;
-    this.time.delayedCall(120, () => runtime ? this.restoreRuntime(runtime) : this.startStage(0));
+    this.time.delayedCall(120, () => runtime ? this.restoreRuntime(runtime) : this.startStage(Math.max(0,this.config.stages.findIndex(stage=>stage.id===this.config.game.entryStage))));
     this.time.addEvent({ delay:this.config.persistence?.autosaveIntervalMs ?? 5000, loop:true, callback:()=>this.requestAutosave() });
     this.events.emit('pause', false);
     this.emitState(true);
@@ -111,6 +113,7 @@ export class BulletHellScene extends Phaser.Scene {
     this.bossTriggered = false;
     this.cinematic = false;
     this.boss = null;
+    this.currentBossId = '';
     this.bossPhase = -1;
     this.bossPhaseHp = 0;
     this.bossPhaseStarted = 0;
@@ -157,10 +160,10 @@ export class BulletHellScene extends Phaser.Scene {
     }
     const enemiesRemain = this.enemies.getChildren().some(child => child.active);
     if (this.waveIndex < stage.waves.length || enemiesRemain || this.stageTransitioning) return;
-    if (stage.hasBoss) {
+    if (stage.bossId) {
       if (this.bossTriggered) return;
       this.bossTriggered = true; this.stageTransitioning = true;
-      this.beginDialogue(stage.bossDialogue, () => { this.stageTransitioning = false; this.spawnBoss(this.time.now); });
+      this.beginDialogue(stage.bossDialogue, () => { this.stageTransitioning = false; this.spawnBoss(stage.bossId!, this.time.now); });
       return;
     }
     this.stageTransitioning = true;
@@ -191,20 +194,21 @@ export class BulletHellScene extends Phaser.Scene {
 
   private spawnWave(wave: WaveEntry): void {
     const definition = this.config.enemies[wave.enemy];
-    const spacing = wave.spacing ?? 72;
+    const formation=wave.formation,spacing=formation.spacing ?? 72;
     for (let index = 0; index < wave.count; index += 1) {
       let x = this.playWidth / 2 + (index - (wave.count - 1) / 2) * spacing;
       let y = -30 - Math.abs(index - (wave.count - 1) / 2) * 22;
-      if (wave.formation === 'v') y -= Math.abs(index - (wave.count - 1) / 2) * 30;
-      if (wave.formation === 'sweep-left') { x = 45 + index * spacing; y -= index * 34; }
-      if (wave.formation === 'sweep-right') { x = this.playWidth - 45 - index * spacing; y -= index * 34; }
-      const enemy = this.enemies.get(x, y, 'enemy-core') as EnemySprite | null;
+      if (formation.type === 'v') y -= Math.abs(index - (wave.count - 1) / 2) * 30;
+      if (formation.type === 'sweep'&&formation.direction==='left') { x = 45 + index * spacing; y -= index * (formation.stepY??34); }
+      if (formation.type === 'sweep'&&formation.direction==='right') { x = this.playWidth - 45 - index * spacing; y -= index * (formation.stepY??34); }
+      const texture=definition.texture??'enemy-core',enemy = this.enemies.get(x, y, texture) as EnemySprite | null;
       if (!enemy) continue;
-      enemy.enableBody(true, x, y, true, true).setTexture('enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius / 16).setDepth(5);
-      enemy.setCircle(13).setData('hp', definition.hp).setData('wave', wave.formation);
+      enemy.enableBody(true, x, y, true, true).setTexture(texture).setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius / 16).setDepth(5);
+      enemy.setCircle(13).setData('hp', definition.hp).setData('wave', formation.type);
       enemy.definition = definition; enemy.definitionId = wave.enemy; enemy.firedAt = 0; enemy.angleSeed = Math.random() * Math.PI * 2;
       const body = enemy.body as Phaser.Physics.Arcade.Body;
-      body.setVelocity(wave.formation === 'sweep-left' ? 35 : wave.formation === 'sweep-right' ? -35 : Math.sin(index * 2) * 24, definition.speed);
+      const movement=definition.movement??{type:'linear',velocityY:definition.speed} as MovementDefinition;
+      this.applyMovement(body,movement,index,formation);
     }
   }
 
@@ -215,35 +219,43 @@ export class BulletHellScene extends Phaser.Scene {
       if (enemy === this.boss) { this.updateBoss(enemy, time, delta); return; }
       const definition = enemy.definition;
       if (!definition) { enemy.disableBody(true, true); return; }
-      if (enemy.y > 90 && enemy.y < 410 && time - (enemy.firedAt ?? 0) >= definition.pattern.intervalMs) {
-        enemy.firedAt = time;
-        this.firePattern(enemy.x, enemy.y, definition.pattern, time, enemy.angleSeed ?? 0);
-      }
+      const movement=definition.movement;
+      if(movement?.type==='sine'&&enemy.y>=movement.enterY){const body=enemy.body as Phaser.Physics.Arcade.Body;body.setVelocity(0,0);enemy.x=movement.centerX+Math.sin((time-this.stageStartedAt)/movement.periodMs*Math.PI*2)*movement.amplitudeX;body.updateFromGameObject();}
+      if(movement?.type==='stationary'){enemy.setPosition(movement.x,movement.y);(enemy.body as Phaser.Physics.Arcade.Body).setVelocity(0,0);}
+      if (enemy.y > 90 && enemy.y < 410) definition.patterns.forEach((pattern,index)=>{const key=`enemy:${index}`,last=Number(enemy.getData(key)??enemy.firedAt??0);if(time-last>=pattern.intervalMs){enemy.setData(key,time);this.firePattern(enemy.x,enemy.y,pattern,time,(enemy.angleSeed??0)+index);}});
       const margin = this.config.rules.bulletCullMargin;
       if (enemy.y > this.playHeight + margin || enemy.x < -margin || enemy.x > this.playWidth + margin) enemy.disableBody(true, true);
     });
   }
 
-  private spawnBoss(time: number): void {
+  private applyMovement(body:Phaser.Physics.Arcade.Body,movement:MovementDefinition,index=0,formation?:FormationDefinition):void {
+    if(movement.type==='linear'){const formationX=formation?.type==='sweep'?(formation.direction==='left'?35:-35):Math.sin(index*2)*24;body.setVelocity(movement.velocityX??formationX,movement.velocityY);}
+    if(movement.type==='sine')body.setVelocity(0,movement.enterSpeed);
+    if(movement.type==='stationary'){(body.gameObject as Phaser.GameObjects.Sprite).setPosition(movement.x,movement.y);body.setVelocity(0,0);}
+  }
+
+  private spawnBoss(bossId:string,time: number): void {
     if (this.boss?.active || this.ended) return;
     if (!this.isPaused && !this.cinematic) this.physics.world.resume();
-    const movement = this.config.boss.movement;
-    const boss = this.enemies.get(movement.spawnX, movement.spawnY, this.config.boss.texture) as EnemySprite | null;
+    const definition=this.config.bosses[bossId];if(!definition)return;this.currentBossId=bossId;
+    const movement = definition.movement,spawn=definition.spawn;
+    const boss = this.enemies.get(spawn.x, spawn.y, definition.texture) as EnemySprite | null;
     if (!boss) return;
-    boss.enableBody(true, movement.spawnX, movement.spawnY, true, true).setTexture(this.config.boss.texture).setScale(.24).setDepth(6).setTint(0xffd8ff);
-    boss.setCircle(this.config.boss.radius, Math.max(0, boss.width / 2 - this.config.boss.radius), Math.max(0, boss.height / 2 - this.config.boss.radius));
-    (boss.body as Phaser.Physics.Arcade.Body).setVelocity(0, movement.enterSpeed);
+    boss.enableBody(true, spawn.x, spawn.y, true, true).setTexture(definition.texture).setScale(.24).setDepth(6).setTint(Phaser.Display.Color.HexStringToColor(definition.tint??'#ffd8ff').color);
+    boss.setCircle(definition.radius, Math.max(0, boss.width / 2 - definition.radius), Math.max(0, boss.height / 2 - definition.radius));
+    this.applyMovement(boss.body as Phaser.Physics.Arcade.Body,movement);
     boss.phase = -1; boss.definition = undefined;
     this.bossPhase = -1; this.bossPhaseHp = 0; this.bossPhaseTransitioning = true;
     this.boss = boss;
-    this.events.emit('message', { title:this.config.boss.name, text:this.config.ui.messages.bossWarning, duration:2200 });
+    this.events.emit('message', { title:definition.name, text:this.config.ui.messages.bossWarning, duration:2200 });
     this.time.delayedCall(1200, () => this.startBossPhase(0, time + 1200));
   }
 
   private startBossPhase(index: number, time: number): void {
     if (!this.boss?.active) return;
-    if (index >= this.config.boss.phases.length) { this.clearStage(); return; }
-    const phase = this.config.boss.phases[index];
+    const definition=this.bossConfig;if(!definition)return;
+    if (index >= definition.phases.length) { this.clearStage(); return; }
+    const phase = definition.phases[index];
     this.bossPhaseTransitioning = false; this.bossPhase = index; this.boss.phase = index; this.bossPhaseHp = phase.hp; this.boss.setData('hp', phase.hp);
     this.bossPhaseStarted = time; this.patternTimers.clear();
     this.enemyBullets.clear(true, true);
@@ -251,14 +263,15 @@ export class BulletHellScene extends Phaser.Scene {
   }
 
   private updateBoss(enemy: EnemySprite, time: number, _delta: number): void {
-    const movement = this.config.boss.movement;
-    if (enemy.y < movement.enterY) return;
+    const definition=this.bossConfig;if(!definition)return;const movement = definition.movement;
+    if (movement.type==='sine'&&enemy.y < movement.enterY) return;
     const body = enemy.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);
-    enemy.x = movement.spawnX + Math.sin((time - this.stageStartedAt) / movement.periodMs * Math.PI * 2) * movement.amplitudeX;
+    if(movement.type==='sine')enemy.x = movement.centerX + Math.sin((time - this.stageStartedAt) / movement.periodMs * Math.PI * 2) * movement.amplitudeX;
+    if(movement.type==='stationary')enemy.setPosition(movement.x,movement.y);
     body.updateFromGameObject();
     if (this.bossPhaseTransitioning) return;
-    const phase = this.config.boss.phases[this.bossPhase];
+    const phase = definition.phases[this.bossPhase];
     if (!phase) return;
     phase.patterns.forEach((pattern, index) => {
       const key = `${this.bossPhase}:${index}`;
@@ -289,11 +302,12 @@ export class BulletHellScene extends Phaser.Scene {
   private shoot(time: number): void {
     this.lastShot = time;
     const shotLevel = [...this.playerConfig.shotLevels].sort((a,b) => b.power - a.power).find(level => this.power >= level.power) ?? this.playerConfig.shotLevels[0];
-    shotLevel.offsets.forEach((offset, index) => {
-      const shot = this.playerShots.get(this.player.x + offset, this.player.y - 26, 'player-shot') as Phaser.Physics.Arcade.Image | null;
+    const shots=shotLevel.type==='parallel'?shotLevel.offsets.map(offset=>({xOffset:offset,velocityX:offset*(shotLevel.velocityXScale??0)})):Array.from({length:shotLevel.count},(_,index)=>({xOffset:(index-(shotLevel.count-1)/2)*7,velocityX:Math.sin((index-(shotLevel.count-1)/2)*shotLevel.spread)*this.playerConfig.shotSpeed}));
+    shots.forEach(({xOffset,velocityX}, index) => {
+      const shot = this.playerShots.get(this.player.x + xOffset, this.player.y - 26, 'player-shot') as Phaser.Physics.Arcade.Image | null;
       if (!shot) return;
-      shot.enableBody(true, this.player.x + offset, this.player.y - 26, true, true).setTexture('player-shot').setDepth(5).setTint(index % 2 ? 0x8fffff : 0xffffff);
-      const shotBody = shot.body as Phaser.Physics.Arcade.Body; shotBody.setSize(6, 20, true).setVelocity(offset * (shotLevel.velocityXScale ?? 0), -this.playerConfig.shotSpeed);
+      shot.enableBody(true, this.player.x + xOffset, this.player.y - 26, true, true).setTexture('player-shot').setDepth(5).setTint(index % 2 ? 0x8fffff : 0xffffff);
+      const shotBody = shot.body as Phaser.Physics.Arcade.Body; shotBody.setSize(6, 20, true).setVelocity(velocityX, -this.playerConfig.shotSpeed);
       shot.setData('damage', shotLevel.damage);
     });
   }
@@ -302,7 +316,7 @@ export class BulletHellScene extends Phaser.Scene {
     const shot = shotObject as Phaser.Physics.Arcade.Image;
     const enemy = enemyObject as EnemySprite;
     if (!shot.active || !enemy.active) return;
-    if (enemy === this.boss && (this.bossPhaseTransitioning || this.bossPhase < 0 || !this.config.boss.phases[this.bossPhase])) return;
+    if (enemy === this.boss && (this.bossPhaseTransitioning || this.bossPhase < 0 || !this.bossConfig?.phases[this.bossPhase])) return;
     shot.disableBody(true, true);
     const hp = Number(enemy.getData('hp')) - Number(shot.getData('damage') ?? 1);
     enemy.setData('hp', hp);
@@ -322,7 +336,7 @@ export class BulletHellScene extends Phaser.Scene {
 
   private finishBossPhase(captured: boolean, time: number): void {
     if (!this.boss?.active || this.bossPhaseTransitioning) return;
-    const phase = this.config.boss.phases[this.bossPhase];
+    const phase = this.bossConfig?.phases[this.bossPhase];
     if (!phase) return;
     this.bossPhaseTransitioning = true;
     const remaining = Math.max(0, phase.durationMs - (time - this.bossPhaseStarted));
@@ -350,13 +364,13 @@ export class BulletHellScene extends Phaser.Scene {
 
   private useBomb(time: number): void {
     if (this.bombs <= 0 || time < this.invulnerableUntil || this.ended) return;
-    this.bombs -= 1; this.invulnerableUntil = time + this.config.rules.bombInvulnerabilityMs;
+    const behavior=this.playerConfig.bomb;this.bombs -= 1; this.invulnerableUntil = time + behavior.invulnerabilityMs;
     const cleared = this.enemyBullets.countActive(true);
     this.enemyBullets.clear(true, true);
     this.addScore(cleared * this.config.scoring.bombBulletClear);
     const ring = this.add.circle(this.player.x, this.player.y, 30, 0x7ffaff, .2).setStrokeStyle(5, 0xffffff, .9).setDepth(10);
     this.tweens.add({ targets:ring, radius:520, alpha:0, duration:700, onComplete:()=>ring.destroy() });
-    if (this.boss?.active && this.bossPhase >= 0) { const hp = Math.max(1, Number(this.boss.getData('hp')) - this.config.rules.bombDamage); this.boss.setData('hp', hp); this.bossPhaseHp = hp; }
+    if (behavior.type==='clear-and-damage'&&this.boss?.active && this.bossPhase >= 0) { const hp = Math.max(1, Number(this.boss.getData('hp')) - behavior.damage); this.boss.setData('hp', hp); this.bossPhaseHp = hp; }
     this.events.emit('message', { title:this.config.ui.messages.bomb, text:this.config.ui.messages.bombCleared.replace('{count}', String(cleared)), duration:700 });
   }
 
@@ -426,7 +440,8 @@ export class BulletHellScene extends Phaser.Scene {
     this.enemies.getChildren().forEach(child => {
       const enemy = child as EnemySprite; if (!enemy.active) return;
       const body = enemy.body as Phaser.Physics.Arcade.Body;
-      entities.push({ kind:enemy===this.boss?'boss':'enemy', definitionId:enemy.definitionId, x:enemy.x, y:enemy.y, velocityX:body.velocity.x, velocityY:body.velocity.y, hp:Number(enemy.getData('hp')??0), firedAgoMs:Math.max(0,now-(enemy.firedAt??now)), angleSeed:enemy.angleSeed });
+      const patternElapsedMs:Record<string,number>={};enemy.definition?.patterns.forEach((_,index)=>{const key=`enemy:${index}`,at=Number(enemy.getData(key)??0);if(at)patternElapsedMs[key]=Math.max(0,now-at);});
+      entities.push({ kind:enemy===this.boss?'boss':'enemy', definitionId:enemy.definitionId, x:enemy.x, y:enemy.y, velocityX:body.velocity.x, velocityY:body.velocity.y, hp:Number(enemy.getData('hp')??0), firedAgoMs:Math.max(0,now-(enemy.firedAt??now)),patternElapsedMs, angleSeed:enemy.angleSeed });
     });
     const collect = (group:Phaser.Physics.Arcade.Group, kind:'enemyBullet'|'playerShot'|'pickup'):void => group.getChildren().forEach(child => {
       const item=child as BulletSprite; if(!item.active)return; const body=item.body as Phaser.Physics.Arcade.Body;
@@ -434,7 +449,7 @@ export class BulletHellScene extends Phaser.Scene {
     });
     collect(this.enemyBullets,'enemyBullet');collect(this.playerShots,'playerShot');collect(this.pickups,'pickup');
     const patternElapsedMs:Record<string,number>={};this.patternTimers.forEach((at,key)=>{patternElapsedMs[key]=Math.max(0,now-at);});
-    return {schemaVersion:1,savedAt:new Date().toISOString(),playerId:this.selectedPlayerId,stageId:this.config.stages[this.currentStageIndex].id,stageElapsedMs:Math.max(0,now-this.stageStartedAt),waveIndex:this.waveIndex,bossTriggered:this.bossTriggered,player:{x:this.player.x,y:this.player.y,score:this.score,lives:this.lives,bombs:this.bombs,power:this.power,graze:this.graze,combo:this.combo,comboRemainingMs:Math.max(0,this.comboUntil-now),invulnerableRemainingMs:Math.max(0,this.invulnerableUntil-now)},boss:this.boss?.active&&this.bossPhase>=0?{phase:this.bossPhase,hp:this.bossPhaseHp,phaseElapsedMs:Math.max(0,now-this.bossPhaseStarted),patternElapsedMs}:null,entities};
+    return {schemaVersion:1,savedAt:new Date().toISOString(),playerId:this.selectedPlayerId,stageId:this.config.stages[this.currentStageIndex].id,stageElapsedMs:Math.max(0,now-this.stageStartedAt),waveIndex:this.waveIndex,bossTriggered:this.bossTriggered,player:{x:this.player.x,y:this.player.y,score:this.score,lives:this.lives,bombs:this.bombs,power:this.power,graze:this.graze,combo:this.combo,comboRemainingMs:Math.max(0,this.comboUntil-now),invulnerableRemainingMs:Math.max(0,this.invulnerableUntil-now)},boss:this.boss?.active&&this.bossPhase>=0?{definitionId:this.currentBossId,phase:this.bossPhase,hp:this.bossPhaseHp,phaseElapsedMs:Math.max(0,now-this.bossPhaseStarted),patternElapsedMs}:null,entities};
   }
 
   requestManualSave(): boolean { const runtime=this.createRuntimeState();if(!runtime)return false;this.events.emit('checkpoint',runtime);return true; }
@@ -449,9 +464,10 @@ export class BulletHellScene extends Phaser.Scene {
     runtime.entities.forEach(saved=>{
       let item:Phaser.Physics.Arcade.Image|Phaser.Physics.Arcade.Sprite|null=null;
       if(saved.kind==='enemy'||saved.kind==='boss'){
-        const enemy=this.enemies.get(saved.x,saved.y,saved.kind==='boss'?this.config.boss.texture:'enemy-core') as EnemySprite|null;if(!enemy)return;enemy.enableBody(true,saved.x,saved.y,true,true).setDepth(saved.kind==='boss'?6:5);enemy.setData('hp',saved.hp??1);enemy.angleSeed=saved.angleSeed;enemy.firedAt=now-(saved.firedAgoMs??0);
-        if(saved.kind==='boss'){enemy.setTexture(this.config.boss.texture).setScale(.24).setTint(0xffd8ff);enemy.setCircle(this.config.boss.radius,Math.max(0,enemy.width/2-this.config.boss.radius),Math.max(0,enemy.height/2-this.config.boss.radius));enemy.phase=runtime.boss?.phase??-1;this.boss=enemy;}
-        else {const definition=saved.definitionId?this.config.enemies[saved.definitionId]:undefined;if(!definition){enemy.disableBody(true,true);return;}enemy.definition=definition;enemy.definitionId=saved.definitionId;enemy.setTexture('enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius/16).setCircle(13);}
+        const bossDefinition=runtime.boss?this.config.bosses[runtime.boss.definitionId]:undefined,enemyDefinition=saved.definitionId?this.config.enemies[saved.definitionId]:undefined,texture=saved.kind==='boss'?bossDefinition?.texture:(enemyDefinition?.texture??'enemy-core');if(!texture)return;
+        const enemy=this.enemies.get(saved.x,saved.y,texture) as EnemySprite|null;if(!enemy)return;enemy.enableBody(true,saved.x,saved.y,true,true).setDepth(saved.kind==='boss'?6:5);enemy.setData('hp',saved.hp??1);enemy.angleSeed=saved.angleSeed;enemy.firedAt=now-(saved.firedAgoMs??0);
+        if(saved.kind==='boss'&&bossDefinition){this.currentBossId=runtime.boss!.definitionId;enemy.setTexture(bossDefinition.texture).setScale(.24).setTint(Phaser.Display.Color.HexStringToColor(bossDefinition.tint??'#ffd8ff').color);enemy.setCircle(bossDefinition.radius,Math.max(0,enemy.width/2-bossDefinition.radius),Math.max(0,enemy.height/2-bossDefinition.radius));enemy.phase=runtime.boss?.phase??-1;this.boss=enemy;}
+        else {const definition=enemyDefinition;if(!definition){enemy.disableBody(true,true);return;}enemy.definition=definition;enemy.definitionId=saved.definitionId;enemy.setTexture(definition.texture??'enemy-core').setTint(Phaser.Display.Color.HexStringToColor(definition.color).color).setScale(definition.radius/16).setCircle(13);Object.entries(saved.patternElapsedMs??{}).forEach(([key,elapsed])=>enemy.setData(key,now-elapsed));}
         item=enemy;
       } else {
         const group=saved.kind==='enemyBullet'?this.enemyBullets:saved.kind==='playerShot'?this.playerShots:this.pickups;const texture=saved.kind==='enemyBullet'?'enemy-bullet':saved.kind==='playerShot'?'player-shot':'power-item';const image=group.get(saved.x,saved.y,texture) as BulletSprite|null;if(!image)return;image.enableBody(true,saved.x,saved.y,true,true).setTexture(texture).setDepth(saved.kind==='enemyBullet'?4:5);if(saved.tint!==undefined)image.setTint(saved.tint);if(saved.kind==='enemyBullet'){image.setCircle(5);image.grazed=Boolean(saved.grazed);}if(saved.kind==='playerShot'){image.setData('damage',saved.damage??1);(image.body as Phaser.Physics.Arcade.Body).setSize(6,20,true);}if(saved.kind==='pickup')image.setCircle(7);item=image;
@@ -478,9 +494,9 @@ export class BulletHellScene extends Phaser.Scene {
   private emitState(force = false): void {
     if (!force && this.time.now - this.lastStateEmitAt < 50) return;
     this.lastStateEmitAt = this.time.now;
-    const phase = this.config.boss.phases[this.bossPhase];
+    const phase = this.bossConfig?.phases[this.bossPhase];
     const stage = this.config.stages[this.currentStageIndex];
-    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.config.boss.name : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '', playerId:this.selectedPlayerId, playerName:this.playerConfig.name } satisfies ShooterState);
+    this.events.emit('state', { score:this.score, highScore:this.highScore, lives:this.lives, bombs:this.bombs, power:this.power, graze:this.graze, combo:this.combo, bossName:this.boss?.active ? this.bossConfig?.name??'' : '', bossPhase:phase?.name ?? '', bossHp:this.bossPhaseHp, bossMaxHp:phase?.hp ?? 1, bossTime:phase ? Math.max(0, phase.durationMs - (this.time.now - this.bossPhaseStarted)) : 0, paused:this.isPaused, stageNumber:this.currentStageIndex + 1, stageCount:this.config.stages.length, stageName:stage?.name ?? '', playerId:this.selectedPlayerId, playerName:this.playerConfig.name } satisfies ShooterState);
   }
 
   private drawStage(): void {

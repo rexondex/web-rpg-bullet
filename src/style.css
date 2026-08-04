@@ -57,11 +57,11 @@ button { color:inherit; font:inherit; cursor:pointer; }
 .dialogue { position:absolute; z-index:60; inset:0; pointer-events:auto; background:linear-gradient(to bottom,transparent 25%,#03071399 68%,#02040cf5); }
 .dialogue img { position:absolute; bottom:120px; left:20px; width:48%; height:68%; object-fit:contain; object-position:center bottom; filter:drop-shadow(0 10px 24px #000b); }
 .dialogue[data-side="right"] img { right:20px; left:auto; transform:scaleX(-1); }
-.dialogue-box { position:absolute; right:20px; bottom:22px; left:20px; min-height:150px; padding:19px 105px 20px 22px; border:1px solid #8eeeff99; border-left:4px solid #62e4ff; background:linear-gradient(135deg,#0a1732f5,#110b25f7); box-shadow:0 12px 40px #000c; }
+.dialogue-box { position:absolute; right:20px; bottom:22px; left:20px; min-height:150px; padding:19px 22px 62px; border:1px solid #8eeeff99; border-left:4px solid #62e4ff; background:linear-gradient(135deg,#0a1732f5,#110b25f7); box-shadow:0 12px 40px #000c; }
 .dialogue[data-side="right"] .dialogue-box { border-right:4px solid #ff6fab; border-left:1px solid #8eeeff99; }
 .dialogue-box span { color:#6fe9ff; font-weight:800; font-size:14px; }.dialogue[data-side="right"] .dialogue-box span { color:#ff8aba; }
 .dialogue-box>b { float:right; color:#7189a5; font:10px 'Black Ops One'; }
-.dialogue-box p { margin:8px 0 0; color:#f3f8ff; font-size:15px; line-height:1.65; word-break:keep-all; }
+.dialogue-box p { margin:8px 0 0; max-width:100%; color:#f3f8ff; font-size:15px; line-height:1.65; word-break:keep-all; }
 .dialogue-box small { position:absolute; right:18px; bottom:55px; color:#718aa3; font-size:9px; }
 .dialogue-box button { position:absolute; right:18px; bottom:18px; padding:8px 12px; border:1px solid #6fe6ff88; background:#132b48; color:#e9fbff; font-size:11px; }
 .pause-layer strong,.loading strong { color:#fff; font:34px 'Black Ops One'; letter-spacing:.2em; text-shadow:0 0 22px #65ddff; }

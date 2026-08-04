@@ -1,12 +1,14 @@
 {
-  "protocolVersion": 1,
+  "protocolVersion": 2,
+  "capabilities": ["formation.line", "formation.v", "formation.sweep", "movement.linear", "movement.sine", "movement.stationary", "pattern.radial", "pattern.aimed", "pattern.fan", "pattern.spiral", "pattern.rain", "shot.parallel", "shot.fan", "bomb.clear-and-damage", "bomb.clear-only"],
   "persistence": { "autosaveIntervalMs": 5000, "storageKey": "starfall-barrage:game-document" },
   "game": {
     "id": "starfall-barrage",
     "title": "STARFALL BARRAGE",
     "subtitle": "두 개의 짧은 스테이지로 구성된 데이터 기반 탄막 슈팅 프로토타입",
-    "version": "0.6.0",
-    "defaultPlayer": "star_traveler"
+    "version": "0.7.0",
+    "defaultPlayer": "star_traveler",
+    "entryStage": "moonlit_path"
   },
   "rules": {
     "playfield": { "width": 640, "height": 720 },
@@ -14,8 +16,6 @@
     "playerHitboxRadius": 12,
     "grazeRadius": 34,
     "hitInvulnerabilityMs": 2200,
-    "bombInvulnerabilityMs": 1800,
-    "bombDamage": 90,
     "deathPowerLoss": 1,
     "respawnBombs": 2,
     "bulletCullMargin": 60,
@@ -60,6 +60,7 @@
     "nextDialogue": "다음 ›",
     "startBattle": "계속 ›",
     "dialogueHint": "Z · Space · Enter · 클릭",
+    "dialogue": { "showProgress": false },
     "retryHint": "점수를 확인한 뒤 아래 버튼을 선택하세요",
     "title": {
       "kicker": "PROTOCOL DEMONSTRATION",
@@ -95,9 +96,9 @@
       "clearDialogue": "stage_one_clear",
       "nextStage": "starfall_ruins",
       "waves": [
-        { "atMs": 500, "enemy": "wisp", "count": 5, "formation": "v", "spacing": 82 },
-        { "atMs": 3500, "enemy": "fairy", "count": 6, "formation": "sweep-left", "spacing": 92 },
-        { "atMs": 7000, "enemy": "wisp", "count": 7, "formation": "line", "spacing": 76 }
+        { "atMs": 500, "enemy": "wisp", "count": 5, "formation": { "type": "v", "spacing": 82 } },
+        { "atMs": 3500, "enemy": "fairy", "count": 6, "formation": { "type": "sweep", "direction": "left", "spacing": 92 } },
+        { "atMs": 7000, "enemy": "wisp", "count": 7, "formation": { "type": "line", "spacing": 76 } }
       ]
     },
     {
@@ -110,10 +111,10 @@
       "introDialogue": "ruins_arrival",
       "bossDialogue": "boss_encounter",
       "clearDialogue": "ending",
-      "hasBoss": true,
+      "bossId": "selene",
       "waves": [
-        { "atMs": 500, "enemy": "fairy", "count": 5, "formation": "sweep-right", "spacing": 100 },
-        { "atMs": 4300, "enemy": "sentinel", "count": 3, "formation": "v", "spacing": 150 }
+        { "atMs": 500, "enemy": "fairy", "count": 5, "formation": { "type": "sweep", "direction": "right", "spacing": 100 } },
+        { "atMs": 4300, "enemy": "sentinel", "count": 3, "formation": { "type": "v", "spacing": 150 } }
       ]
     }
   ],
@@ -158,23 +159,51 @@
       "shotName": "별빛 확산탄",
       "bombName": "STAR BREAK",
       "shotLevels": [
-        { "power": 1, "offsets": [-7, 7], "damage": 2, "velocityXScale": 0 },
-        { "power": 2, "offsets": [-12, 0, 12], "damage": 2, "velocityXScale": 0 },
-        { "power": 3, "offsets": [-20, -7, 7, 20], "damage": 2, "velocityXScale": 0 },
-        { "power": 4, "offsets": [-26, -13, 0, 13, 26], "damage": 3, "velocityXScale": 1.2 }
-      ]
+        { "power": 1, "type": "parallel", "offsets": [-7, 7], "damage": 2, "velocityXScale": 0 },
+        { "power": 2, "type": "parallel", "offsets": [-12, 0, 12], "damage": 2, "velocityXScale": 0 },
+        { "power": 3, "type": "parallel", "offsets": [-20, -7, 7, 20], "damage": 2, "velocityXScale": 0 },
+        { "power": 4, "type": "fan", "count": 5, "spread": 0.045, "damage": 3 }
+      ],
+      "bomb": { "type": "clear-and-damage", "damage": 90, "invulnerabilityMs": 1800 }
+    },
+    "moon_guardian": {
+      "name": "달의 수호자",
+      "description": "넓은 부채꼴 사격과 방어적인 탄환 소거 폭탄을 사용하는 기체입니다.",
+      "portrait": "hero_portrait",
+      "texture": "hero",
+      "speed": 285,
+      "focusSpeed": 125,
+      "lives": 4,
+      "bombs": 2,
+      "shotIntervalMs": 105,
+      "shotSpeed": 680,
+      "spawnX": 320,
+      "spawnBottom": 82,
+      "maxPower": 4,
+      "shotName": "월광 부채",
+      "bombName": "MOON SHIELD",
+      "shotLevels": [
+        { "power": 1, "type": "parallel", "offsets": [-8, 8], "damage": 2 },
+        { "power": 2, "type": "fan", "count": 3, "spread": 0.035, "damage": 2 },
+        { "power": 3, "type": "fan", "count": 5, "spread": 0.05, "damage": 2 },
+        { "power": 4, "type": "fan", "count": 7, "spread": 0.06, "damage": 2 }
+      ],
+      "bomb": { "type": "clear-only", "invulnerabilityMs": 2600 }
     }
   },
   "enemies": {
-    "wisp": { "hp": 10, "speed": 76, "radius": 14, "score": 1200, "pickupChance": 0.42, "color": "#70e8ff", "pattern": { "type": "aimed", "intervalMs": 1300, "bulletSpeed": 160, "count": 1, "waves": 2, "color": "#59dfff" } },
-    "fairy": { "hp": 16, "speed": 68, "radius": 16, "score": 1800, "pickupChance": 0.5, "color": "#ff72c7", "pattern": { "type": "fan", "intervalMs": 1550, "bulletSpeed": 145, "count": 5, "spread": 0.17, "color": "#ff62bb" } },
-    "sentinel": { "hp": 32, "speed": 54, "radius": 22, "score": 5000, "pickupChance": 0.75, "color": "#ffd063", "pattern": { "type": "radial", "intervalMs": 1050, "bulletSpeed": 125, "count": 12, "spin": 0.14, "color": "#ffc857" } }
+    "wisp": { "hp": 10, "speed": 76, "radius": 14, "score": 1200, "pickupChance": 0.42, "color": "#70e8ff", "movement": { "type": "linear", "velocityY": 76 }, "patterns": [{ "type": "aimed", "intervalMs": 1300, "bulletSpeed": 160, "count": 1, "waves": 2, "color": "#59dfff" }] },
+    "fairy": { "hp": 16, "speed": 68, "radius": 16, "score": 1800, "pickupChance": 0.5, "color": "#ff72c7", "movement": { "type": "linear", "velocityY": 68 }, "patterns": [{ "type": "fan", "intervalMs": 1550, "bulletSpeed": 145, "count": 5, "spread": 0.17, "color": "#ff62bb" }] },
+    "sentinel": { "hp": 32, "speed": 54, "radius": 22, "score": 5000, "pickupChance": 0.75, "color": "#ffd063", "movement": { "type": "linear", "velocityY": 54 }, "patterns": [{ "type": "radial", "intervalMs": 1050, "bulletSpeed": 125, "count": 12, "spin": 0.14, "color": "#ffc857" }] }
   },
-  "boss": {
+  "bosses": {
+    "selene": {
     "name": "성좌의 파수꾼 셀레네",
     "texture": "boss_battle",
     "radius": 34,
-    "movement": { "spawnX": 320, "spawnY": -90, "enterY": 130, "enterSpeed": 95, "amplitudeX": 190, "periodMs": 2400 },
+    "tint": "#ffd8ff",
+    "spawn": { "x": 320, "y": -90 },
+    "movement": { "type": "sine", "centerX": 320, "enterY": 130, "enterSpeed": 95, "amplitudeX": 190, "periodMs": 2400 },
     "phases": [
       {
         "name": "성부 「쌍성의 윤무」",
@@ -196,6 +225,7 @@
         ]
       }
     ]
+    }
   },
   "assets": {
     "hero": "./assets/characters/hero.svg",

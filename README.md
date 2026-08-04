@@ -2,7 +2,7 @@
 
 Phaser 3, TypeScript, Vite로 만든 데이터 기반 웹 탄막 슈팅 예제입니다. 기존 2D RPG 프로젝트의 에셋 로딩 구조를 유지하면서 실제 플레이 루프를 세로형 탄막 슈팅으로 전환했습니다.
 
-현재 버전은 `0.6.0`입니다. 버전별 작업 내역과 기록 규칙은 [`CHANGELOG.md`](CHANGELOG.md)에서 확인할 수 있습니다.
+현재 버전은 `0.7.0`입니다. 버전별 작업 내역과 기록 규칙은 [`CHANGELOG.md`](CHANGELOG.md)에서 확인할 수 있습니다.
 
 ## 실행
 
@@ -46,6 +46,8 @@ npm run dev
 - 키보드 및 모바일 터치 조작
 
 ## 콘텐츠 편집
+
+탄막 엔진 데이터 규격과 다형성 확장 절차는 [`docs/SHOOTER_PROTOCOL_V2.md`](docs/SHOOTER_PROTOCOL_V2.md)에 정리되어 있습니다. 기계 판독용 JSON Schema는 [`public/game-data/shooter.schema.json`](public/game-data/shooter.schema.json)입니다.
 
 ### 단일 JSON 게임 문서 저장
 

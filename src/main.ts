@@ -66,8 +66,9 @@ function renderState(state:ShooterState):void{
 }
 
 function showDialogue(request:DialogueRequest):void{
-  const panel=$('#dialogue'),portrait=$('#dialogue-portrait') as HTMLImageElement;let index=0,closed=false;
-  const render=():void=>{const line=request.lines[index];$('#dialogue-speaker').textContent=line.speaker;$('#dialogue-text').textContent=line.text;$('#dialogue-progress').textContent=`${index+1} / ${request.lines.length}`;$('#dialogue-next').textContent=index===request.lines.length-1?config.ui.startBattle:config.ui.nextDialogue;panel.dataset.side=line.side??'left';const source=line.portrait?config.assets[line.portrait]:'';if(source){portrait.src=source;portrait.alt=`${line.speaker} 스탠딩 일러스트`;portrait.classList.remove('hidden');}else{portrait.removeAttribute('src');portrait.classList.add('hidden');}};
+  const panel=$('#dialogue'),box=panel.querySelector<HTMLElement>('.dialogue-box')!,portrait=$('#dialogue-portrait') as HTMLImageElement;let index=0,closed=false,progress=panel.querySelector<HTMLElement>('#dialogue-progress');
+  if(config.ui.dialogue?.showProgress&&!progress){progress=document.createElement('b');progress.id='dialogue-progress';box.insertBefore(progress,$('#dialogue-text'));}else if(!config.ui.dialogue?.showProgress){progress?.remove();progress=null;}
+  const render=():void=>{const line=request.lines[index];$('#dialogue-speaker').textContent=line.speaker;$('#dialogue-text').textContent=line.text;if(progress)progress.textContent=`${index+1} / ${request.lines.length}`;$('#dialogue-next').textContent=index===request.lines.length-1?config.ui.startBattle:config.ui.nextDialogue;panel.dataset.side=line.side??'left';const source=line.portrait?config.assets[line.portrait]:'';if(source){portrait.src=source;portrait.alt=`${line.speaker} 스탠딩 일러스트`;portrait.classList.remove('hidden');}else{portrait.removeAttribute('src');portrait.classList.add('hidden');}};
   const advance=():void=>{if(closed)return;index+=1;if(index<request.lines.length){render();return;}closed=true;panel.classList.add('hidden');$('#dialogue-next').onclick=null;panel.onclick=null;dialogueAdvance=null;request.done();};
   dialogueAdvance=advance;$('#dialogue-next').onclick=event=>{event.stopPropagation();advance();};panel.onclick=event=>{if(!(event.target as HTMLElement).closest('button'))advance();};panel.classList.remove('hidden');render();
 }

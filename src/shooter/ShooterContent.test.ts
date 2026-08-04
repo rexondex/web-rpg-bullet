@@ -11,7 +11,7 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
   it('등록하지 않은 적과 위험한 탄 개수를 검출한다', () => {
     const invalid = structuredClone(shooterData) as ShooterProtocol;
     invalid.stages[0].waves[0].enemy = 'missing-enemy';
-    invalid.boss.phases[0].patterns[0].count = 999;
+    invalid.bosses.selene.phases[0].patterns[0].count = 999;
     const result = validateShooterContent(invalid).join('\n');
     expect(result).toContain('missing-enemy');
     expect(result).toContain('탄 개수');
@@ -46,5 +46,17 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
     const invalid = structuredClone(shooterData) as ShooterProtocol;
     invalid.game.defaultPlayer = 'missing-player';
     expect(validateShooterContent(invalid).join('\n')).toContain('missing-player');
+  });
+
+  it('사용 전략의 capability 선언 누락을 검출한다', () => {
+    const invalid = structuredClone(shooterData) as ShooterProtocol;
+    invalid.capabilities = invalid.capabilities.filter(item => item !== 'shot.fan');
+    expect(validateShooterContent(invalid).join('\n')).toContain('shot.fan');
+  });
+
+  it('스테이지가 참조하는 보스 ID를 검증한다', () => {
+    const invalid = structuredClone(shooterData) as ShooterProtocol;
+    invalid.stages[1].bossId = 'missing-boss';
+    expect(validateShooterContent(invalid).join('\n')).toContain('missing-boss');
   });
 });
