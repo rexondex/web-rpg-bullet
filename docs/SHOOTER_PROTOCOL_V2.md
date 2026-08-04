@@ -21,6 +21,8 @@
 - `stages[].bossId` → `bosses`의 ID
 - 모든 `texture`, `portrait`, `background` → `assets`의 ID
 
+`stages[].backgroundPresentation`은 배경 표시 방식도 데이터화합니다. `fit: "cover"`는 원본 비율을 유지하고, `focusX`·`focusY`는 0~1 범위에서 잘릴 영역의 중심을 지정합니다. `stretch`는 의도적으로 화면 크기에 맞춰 변형할 때만 사용합니다.
+
 ## 다형성 전략
 
 | 영역 | `type` |

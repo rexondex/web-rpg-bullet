@@ -50,6 +50,7 @@ export interface ShooterStage {
   name: string;
   subtitle: string;
   background: string;
+  backgroundPresentation?: { fit:'cover'|'stretch'; focusX?:number; focusY?:number; alpha?:number };
   width: number;
   height: number;
   waves: WaveEntry[];

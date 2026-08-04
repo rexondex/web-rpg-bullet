@@ -6,14 +6,14 @@ body { min-width:320px; min-height:100vh; margin:0; overflow-x:hidden; backgroun
 body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:.26; background-image:linear-gradient(#73ddff12 1px,transparent 1px),linear-gradient(90deg,#73ddff12 1px,transparent 1px); background-size:38px 38px; mask-image:linear-gradient(to bottom,#000,transparent 75%); }
 button { color:inherit; font:inherit; cursor:pointer; }
 .hidden { display:none!important; }
-#app { width:min(1160px,100%); margin:auto; padding:18px 18px 32px; }
-.masthead { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 2px 14px; }
+#app { width:min(1000px,100%); margin:auto; padding:18px 18px 32px; }
+.masthead { display:flex; align-items:center; justify-content:space-between; gap:20px; width:min(960px,100%); margin:auto; padding:0 2px 14px; }
 .masthead h1 { margin:3px 0 0; font:clamp(26px,3.4vw,38px)/1 'Black Ops One',sans-serif; letter-spacing:.045em; color:#f5fcff; text-shadow:0 0 22px #52cfff70; }
 .masthead p { margin:7px 0 0; max-width:680px; color:#7895ad; font-size:11px; }
 .eyebrow { color:#66e8ff; font:10px 'Black Ops One',sans-serif; letter-spacing:.22em; }
 #pause-button { flex:0 0 auto; min-width:72px; padding:9px 12px; border:1px solid #62cdeb66; border-radius:6px; background:#0d1c31dd; color:#d8f7ff; font:11px 'Black Ops One'; letter-spacing:.08em; }
 #pause-button span { margin-left:7px;color:#6ce8ff; }
-.cabinet { display:grid; grid-template-columns:minmax(0,640px) minmax(280px,320px); justify-content:center; overflow:hidden; border:1px solid #78dcff45; border-radius:12px; background:#070c1a; box-shadow:0 24px 70px #000b,0 0 36px #3dbfff12; }
+.cabinet { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); width:min(960px,100%); margin:auto; overflow:hidden; border:1px solid #78dcff45; border-radius:12px; background:#070c1a; box-shadow:0 24px 70px #000b,0 0 36px #3dbfff12; }
 .playfield { position:relative; min-width:0; aspect-ratio:8/9; overflow:hidden; background:#050713; }
 #game,#game canvas { width:100%; height:100%; display:block; }
 .side-panel { position:relative; display:flex; flex-direction:column; padding:20px; border-left:1px solid var(--line); background:linear-gradient(160deg,#0b1729 0,#080e1b 58%,#120b20 100%); }
@@ -92,7 +92,7 @@ button { color:inherit; font:inherit; cursor:pointer; }
 .mobile-controls button { pointer-events:auto; touch-action:none; user-select:none; border:1px solid #95eaff55; background:#07162dbb; color:#d8f8ff; }
 .dpad { display:grid; grid-template-columns:repeat(3,44px); grid-template-rows:repeat(2,44px); gap:3px; }.dpad button:first-child { grid-column:2; }.dpad button:nth-child(2) { grid-row:2;grid-column:1; }.dpad button:nth-child(3) { grid-row:2;grid-column:2; }.dpad button:nth-child(4) { grid-row:2;grid-column:3; }
 .mobile-actions { display:flex; align-items:end; gap:5px; }.mobile-actions button { width:54px;height:54px;border-radius:50%;font-size:10px; }.mobile-actions .bomb { border-color:#ff79af88;color:#ffc1d9; }
-@media (max-width:960px) { #app { padding:12px; }.masthead p { display:none; }.cabinet { grid-template-columns:minmax(0,640px) minmax(250px,280px); }.side-panel { padding:15px; }.guide-card p { display:none; } }
+@media (max-width:960px) { #app { padding:12px; }.masthead p { display:none; }.cabinet { grid-template-columns:minmax(0,2fr) minmax(250px,1fr); }.side-panel { padding:15px; }.guide-card p { display:none; } }
 @media (max-width:760px) { .masthead h1 { font-size:24px; }.cabinet { display:block; max-width:640px; margin:auto; }.side-panel { display:none; }.mobile-controls { display:flex; }.dialogue img { width:48%;height:58%; }.dialogue-box { right:10px;bottom:10px;left:10px; } }
 @media (max-width:720px) { .title-layout { grid-template-columns:1fr; }.character-section { grid-row:auto; }.title-layout>header { grid-column:auto; }.character-card { grid-template-columns:82px 1fr;min-height:125px; }.character-card img { width:82px;height:125px; } }
 @media (pointer:coarse) { .mobile-controls { display:flex; } }

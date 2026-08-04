@@ -53,6 +53,7 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
     if (stageIds.has(stage.id)) issues.push(`stages[${stageIndex}].id: 중복 ID '${stage.id}'`); else stageIds.add(stage.id);
     if (stage.width !== data.rules?.playfield.width || stage.height !== data.rules?.playfield.height) issues.push(`stages[${stageIndex}]: rules.playfield 크기와 일치해야 합니다.`);
     if (!data.assets?.[stage.background]) issues.push(`stages[${stageIndex}].background: 없는 에셋 '${stage.background}'`);
+    if(stage.backgroundPresentation&&((stage.backgroundPresentation.focusX??.5)<0||(stage.backgroundPresentation.focusX??.5)>1||(stage.backgroundPresentation.focusY??.5)<0||(stage.backgroundPresentation.focusY??.5)>1))issues.push(`stages[${stageIndex}].backgroundPresentation: focusX와 focusY는 0~1이어야 합니다.`);
     if(stage.bossId&&!data.bosses?.[stage.bossId])issues.push(`stages[${stageIndex}].bossId: 없는 보스 '${stage.bossId}'`);
     [stage.introDialogue, stage.clearDialogue, stage.bossDialogue].filter(Boolean).forEach(dialogueId => { if (!data.dialogues?.[dialogueId!]) issues.push(`stages[${stageIndex}]: 없는 대화 '${dialogueId}'`); });
     stage.waves.forEach((wave, waveIndex) => {

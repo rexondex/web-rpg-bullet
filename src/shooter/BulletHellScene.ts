@@ -177,7 +177,7 @@ export class BulletHellScene extends Phaser.Scene {
     if (index >= this.config.stages.length) { this.clearStage(); return; }
     const stage = this.config.stages[index];
     this.currentStageIndex = index; this.waveIndex = 0; this.bossTriggered = false; this.stageTransitioning = false;
-    this.stageBackground.setTexture(stage.background).setDisplaySize(this.playWidth, this.playHeight);
+    this.applyStageBackground(stage);
     this.player.setPosition(this.playerSpawnX, this.playerSpawnY);
     this.enemyBullets.clear(true, true); this.playerShots.clear(true, true);
     this.events.emit('message', { title: stage.name, text: stage.subtitle, duration: 1800 });
@@ -459,7 +459,7 @@ export class BulletHellScene extends Phaser.Scene {
   private restoreRuntime(runtime: ShooterRuntimeState): void {
     const stageIndex=this.config.stages.findIndex(stage=>stage.id===runtime.stageId);if(stageIndex<0){this.startStage(0);return;}
     const now=this.time.now,p=runtime.player;this.currentStageIndex=stageIndex;this.waveIndex=runtime.waveIndex;this.bossTriggered=runtime.bossTriggered;this.stageStartedAt=now-runtime.stageElapsedMs;
-    this.stageBackground.setTexture(this.config.stages[stageIndex].background).setDisplaySize(this.playWidth,this.playHeight);this.player.setPosition(p.x,p.y);this.score=p.score;this.lives=p.lives;this.bombs=p.bombs;this.power=p.power;this.graze=p.graze;this.combo=p.combo;this.comboUntil=now+p.comboRemainingMs;this.invulnerableUntil=now+p.invulnerableRemainingMs;
+    this.applyStageBackground(this.config.stages[stageIndex]);this.player.setPosition(p.x,p.y);this.score=p.score;this.lives=p.lives;this.bombs=p.bombs;this.power=p.power;this.graze=p.graze;this.combo=p.combo;this.comboUntil=now+p.comboRemainingMs;this.invulnerableUntil=now+p.invulnerableRemainingMs;
     this.enemyBullets.clear(true,true);this.playerShots.clear(true,true);this.enemies.clear(true,true);this.pickups.clear(true,true);this.boss=null;this.patternTimers.clear();
     runtime.entities.forEach(saved=>{
       let item:Phaser.Physics.Arcade.Image|Phaser.Physics.Arcade.Sprite|null=null;
@@ -500,12 +500,22 @@ export class BulletHellScene extends Phaser.Scene {
   }
 
   private drawStage(): void {
-    this.stageBackground = this.add.image(this.playWidth / 2, this.playHeight / 2, this.config.stages[0].background).setDisplaySize(this.playWidth, this.playHeight).setAlpha(.42).setDepth(-5);
-    this.tweens.add({ targets:this.stageBackground, y:this.playHeight / 2 + 18, duration:5000, yoyo:true, repeat:-1, ease:'Sine.InOut' });
+    this.stageBackground = this.add.image(this.playWidth / 2, this.playHeight / 2, this.config.stages[0].background).setDepth(-5);
+    this.applyStageBackground(this.config.stages[0]);
     const overlay = this.add.graphics().setDepth(-4); overlay.fillGradientStyle(0x071125, 0x071125, 0x101633, 0x101633, .25, .25, .9, .9).fillRect(0, 0, this.playWidth, this.playHeight);
     for (let i = 0; i < 70; i += 1) { const star = this.add.circle(Phaser.Math.Between(5, this.playWidth - 5), Phaser.Math.Between(0, this.playHeight), Phaser.Math.Between(1, 2), 0xbceaff, Phaser.Math.FloatBetween(.15, .6)).setDepth(-3); this.tweens.add({ targets:star, alpha:.05, duration:Phaser.Math.Between(500, 1600), yoyo:true, repeat:-1 }); }
     this.add.rectangle(this.playWidth - 1, this.playHeight / 2, 2, this.playHeight, 0x8defff, .4).setDepth(20);
     this.add.circle(0, 0, 5, 0xffffff, .2).setStrokeStyle(1, 0x79ffff, 1).setDepth(20).setName('hitbox').setVisible(false);
+  }
+
+  private applyStageBackground(stage:ShooterProtocol['stages'][number]):void {
+    const presentation=stage.backgroundPresentation??{fit:'cover' as const,focusX:.5,focusY:.5,alpha:.42};
+    this.stageBackground.setTexture(stage.background).setAlpha(presentation.alpha??.42);
+    if(presentation.fit==='stretch'){this.stageBackground.setPosition(this.playWidth/2,this.playHeight/2).setDisplaySize(this.playWidth,this.playHeight);return;}
+    const source=this.textures.get(stage.background).getSourceImage() as {width:number;height:number};
+    const scale=Math.max(this.playWidth/source.width,this.playHeight/source.height),width=source.width*scale,height=source.height*scale;
+    const focusX=Phaser.Math.Clamp(presentation.focusX??.5,0,1),focusY=Phaser.Math.Clamp(presentation.focusY??.5,0,1);
+    this.stageBackground.setDisplaySize(width,height).setPosition(this.playWidth/2+(.5-focusX)*Math.max(0,width-this.playWidth),this.playHeight/2+(.5-focusY)*Math.max(0,height-this.playHeight));
   }
 
   private burst(x: number, y: number, color: string, count = 12): void {
