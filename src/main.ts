@@ -8,6 +8,7 @@ import type { DialogueRequest, ScoreEntry, ShooterProtocol, ShooterState } from 
 const $ = <T extends HTMLElement>(selector:string):T => document.querySelector<T>(selector)!;
 let config:ShooterProtocol;let scene:BulletHellScene;let game:Phaser.Game;let leaderboard:LocalLeaderboard;
 let selectedPlayerId='';let messageTimer=0;let dialogueAdvance:(()=>void)|null=null;
+let starting=false;
 
 async function boot():Promise<void>{
   try{
@@ -35,15 +36,22 @@ function applyStaticContent():void{
 function fillGuide(target:HTMLElement):void{target.replaceChildren(...config.ui.guide.map(item=>{const row=document.createElement('div'),term=document.createElement('dt'),description=document.createElement('dd');term.textContent=item.label;description.textContent=item.value;row.append(term,description);return row;}));}
 
 function renderCharacterSelect():void{
-  const entries=Object.entries(config.players);$('#character-select').replaceChildren(...entries.map(([id,player])=>{const button=document.createElement('button');button.type='button';button.className='character-card';button.dataset.player=id;button.classList.toggle('selected',id===selectedPlayerId);if(player.portrait){const image=document.createElement('img');image.src=config.assets[player.portrait];image.alt='';button.append(image);}const copy=document.createElement('span'),name=document.createElement('strong'),description=document.createElement('small'),weapons=document.createElement('em');name.textContent=player.name;description.textContent=player.description;weapons.textContent=`SHOT · ${player.shotName}  /  BOMB · ${player.bombName}`;copy.append(name,description,weapons);button.append(copy);return button;}));
+  const entries=Object.entries(config.players),player=config.players[selectedPlayerId]??entries[0][1],tabs=document.createElement('nav'),preview=document.createElement('article');tabs.className='character-tabs';tabs.setAttribute('aria-label',config.ui.title.selectCharacter);
+  entries.forEach(([id,candidate])=>{const button=document.createElement('button');button.type='button';button.className='character-tab';button.dataset.player=id;button.classList.toggle('selected',id===selectedPlayerId);button.setAttribute('aria-pressed',String(id===selectedPlayerId));button.textContent=candidate.name;button.style.setProperty('--character-accent',candidate.selection.accent);tabs.append(button);});
+  preview.className='character-preview';preview.style.setProperty('--character-accent',player.selection.accent);
+  const visual=document.createElement('div'),image=document.createElement('img'),badge=document.createElement('span');visual.className='character-visual';image.src=player.portrait?config.assets[player.portrait]:config.assets[player.texture];image.alt='';badge.textContent=player.selection.archetype;visual.append(image,badge);
+  const detail=document.createElement('div'),heading=document.createElement('header'),kicker=document.createElement('span'),name=document.createElement('h4'),description=document.createElement('p');detail.className='character-detail';kicker.textContent='PLAYER PROFILE';name.textContent=player.name;description.textContent=player.description;heading.append(kicker,name,description);
+  const stats=document.createElement('dl');stats.className='character-stats';const labels=config.ui.title.stats??{speed:'속도',power:'화력',range:'범위',lives:'잔기',bombs:'폭탄'};(['speed','power','range'] as const).forEach(key=>{const row=document.createElement('div'),term=document.createElement('dt'),value=document.createElement('dd');term.textContent=labels[key];value.className='rating';for(let index=1;index<=5;index+=1){const unit=document.createElement('i');unit.classList.toggle('active',index<=player.selection.ratings[key]);value.append(unit);}row.append(term,value);stats.append(row);});
+  const resources=document.createElement('div');resources.className='selection-resources';([[labels.lives,String(player.lives)],[labels.bombs,String(player.bombs)]] as const).forEach(([label,value])=>{const item=document.createElement('span'),term=document.createTextNode(label),number=document.createElement('b');number.textContent=value;item.append(term,number);resources.append(item);});
+  const loadout=document.createElement('div');loadout.className='selection-loadout';([['SHOT',player.shotName],['BOMB',player.bombName]] as const).forEach(([label,value])=>{const item=document.createElement('span'),term=document.createElement('small'),name=document.createElement('b');term.textContent=label;name.textContent=value;item.append(term,name);loadout.append(item);});detail.append(heading,stats,resources,loadout);preview.append(visual,detail);$('#character-select').replaceChildren(tabs,preview);
 }
 
 function startGame():void{
-  if(!config.players[selectedPlayerId])return;clearOverlays();$('#title-screen').classList.add('hidden');$('#game-shell').classList.remove('title-mode');game.scene.start('bullet-hell',{playerId:selectedPlayerId});
+  if(starting||!config.players[selectedPlayerId])return;starting=true;const title=$('#title-screen');title.classList.add('leaving');window.setTimeout(()=>{clearOverlays();title.classList.add('hidden');title.classList.remove('leaving');$('#game-shell').classList.remove('title-mode');game.scene.start('bullet-hell',{playerId:selectedPlayerId});starting=false;},280);
 }
 
 function returnToTitle():void{
-  if(game.scene.isActive('bullet-hell'))game.scene.stop('bullet-hell');clearOverlays();renderLeaderboard();renderCharacterSelect();$('#game-shell').classList.add('title-mode');$('#title-screen').classList.remove('hidden');
+  if(game.scene.isActive('bullet-hell'))game.scene.stop('bullet-hell');starting=false;clearOverlays();renderLeaderboard();renderCharacterSelect();$('#game-shell').classList.add('title-mode');$('#title-screen').classList.remove('hidden');
 }
 
 function quickRetry():void{clearOverlays();game.scene.start('bullet-hell',{playerId:selectedPlayerId});}
@@ -70,7 +78,7 @@ function showResult(result:{clear:boolean;score:number;graze:number;highScore:nu
 }
 
 function renderLeaderboard():void{
-  const scores=leaderboard.load(),list=$('#leaderboard-list');if(!scores.length){const empty=document.createElement('p');empty.className='score-empty';empty.textContent=config.ui.title.noScores;list.replaceChildren(empty);return;}list.replaceChildren(...scores.map((entry,index)=>createScoreRow(entry,index)));
+  const scores=leaderboard.load().slice(0,config.ui.title.leaderboardLimit??5),list=$('#leaderboard-list');if(!scores.length){const empty=document.createElement('p');empty.className='score-empty';empty.textContent=config.ui.title.noScores;list.replaceChildren(empty);return;}list.replaceChildren(...scores.map((entry,index)=>createScoreRow(entry,index)));
 }
 
 function createScoreRow(entry:ScoreEntry,index:number):HTMLElement{const row=document.createElement('article'),rank=document.createElement('b'),copy=document.createElement('span'),name=document.createElement('strong'),meta=document.createElement('small'),score=document.createElement('em');rank.textContent=String(index+1).padStart(2,'0');name.textContent=entry.playerName;meta.textContent=`${entry.cleared?'CLEAR':'MISS'} · GRAZE ${entry.graze.toLocaleString()}`;score.textContent=entry.score.toLocaleString();copy.append(name,meta);row.append(rank,copy,score);return row;}

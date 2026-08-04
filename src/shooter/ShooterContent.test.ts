@@ -59,4 +59,10 @@ describe('탄막 슈팅 데이터 프로토콜', () => {
     invalid.stages[1].bossId = 'missing-boss';
     expect(validateShooterContent(invalid).join('\n')).toContain('missing-boss');
   });
+
+  it('캐릭터 선택 지표의 범위를 검증한다', () => {
+    const invalid = structuredClone(shooterData) as ShooterProtocol;
+    invalid.players.star_traveler.selection.ratings.speed = 9;
+    expect(validateShooterContent(invalid).join('\n')).toContain('selection');
+  });
 });

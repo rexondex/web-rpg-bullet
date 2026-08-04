@@ -46,6 +46,7 @@ export function validateShooterContent(data: ShooterProtocol): string[] {
     if (!player.shotLevels?.length) issues.push(`players.${id}.shotLevels: 사격 단계가 하나 이상 필요합니다.`);
     player.shotLevels?.forEach((level,index)=>{if(level.power<1||level.power>player.maxPower||level.damage<=0||(level.type==='parallel'&&!level.offsets.length)||(level.type==='fan'&&(level.count<1||level.spread<=0)))issues.push(`players.${id}.shotLevels[${index}]: 사격 전략의 파워, 탄 수 또는 피해량이 유효하지 않습니다.`);});
     if(!player.bomb||player.bomb.invulnerabilityMs<0)issues.push(`players.${id}.bomb: 폭탄 전략이 필요합니다.`);
+    if(!player.selection||!player.selection.accent||Object.values(player.selection.ratings??{}).some(value=>value<1||value>5))issues.push(`players.${id}.selection: 선택 화면 지표는 1~5 범위여야 합니다.`);
     if (data.rules?.playfield && (player.spawnX<0||player.spawnX>data.rules.playfield.width||player.spawnBottom<0||player.spawnBottom>data.rules.playfield.height)) issues.push(`players.${id}: 시작 위치가 플레이 영역 밖입니다.`);
   });
   const stageIds = new Set<string>();

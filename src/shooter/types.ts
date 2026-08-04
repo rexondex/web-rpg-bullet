@@ -86,6 +86,7 @@ export interface PlayerDefinition {
   bombName: string;
   shotLevels: ({ power:number } & PlayerShotPattern)[];
   bomb: BombBehavior;
+  selection: { archetype:string; accent:string; ratings:{ speed:number; power:number; range:number } };
 }
 
 export interface BossPhase {
@@ -158,6 +159,8 @@ export interface ShooterProtocol {
     title: {
       kicker:string; heading:string; description:string; selectCharacter:string; controls:string; leaderboard:string;
       noScores:string; start:string; quickRetry:string; returnToTitle:string; clearScores:string;
+      leaderboardLimit?:number;
+      stats?: { speed:string; power:string; range:string; lives:string; bombs:string };
     };
     messages: { miss:string; respawn:string; lastLife:string; bomb:string; bombCleared:string; bossWarning:string };
   };
