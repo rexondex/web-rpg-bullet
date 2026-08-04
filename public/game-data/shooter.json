@@ -5,7 +5,7 @@
     "id": "starfall-barrage",
     "title": "STARFALL BARRAGE",
     "subtitle": "두 개의 짧은 스테이지로 구성된 데이터 기반 탄막 슈팅 프로토타입",
-    "version": "0.7.2",
+    "version": "0.7.3",
     "defaultPlayer": "star_traveler",
     "entryStage": "moonlit_path"
   },
@@ -62,9 +62,9 @@
     "dialogue": { "showProgress": false },
     "retryHint": "점수를 확인한 뒤 아래 버튼을 선택하세요",
     "title": {
-      "kicker": "PROTOCOL DEMONSTRATION",
-      "heading": "별의 문에 도전할 여행자를 선택하세요",
-      "description": "캐릭터와 조작법을 확인한 뒤 두 개의 짧은 스테이지에 도전합니다.",
+      "kicker": "DATA-DRIVEN BULLET HELL",
+      "heading": "STARFALL BARRAGE",
+      "description": "여행자를 선택하고 별의 문으로 향하세요. 두 개의 짧은 스테이지가 기다립니다.",
       "selectCharacter": "CHARACTER SELECT",
       "controls": "KEY GUIDE",
       "leaderboard": "LOCAL SCOREBOARD",
