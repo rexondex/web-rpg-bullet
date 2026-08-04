@@ -50,5 +50,6 @@
 - 런타임 저장 스키마: `runtime.schemaVersion: 1`
 - v1 콘텐츠 문서는 v2와 형태가 다르므로 자동 실행하지 않습니다.
 - 저장 문서는 콘텐츠 전체와 `runtime`을 결합합니다. 따라서 캐릭터·스테이지·보스 ID는 저장 이후에도 유지해야 합니다.
+- 진행 저장은 선택 기능입니다. 데이터셋에 `persistence`가 없으면 엔진은 자동 체크포인트를 만들지 않습니다.
 
 기계 판독용 기본 스키마는 [`public/game-data/shooter.schema.json`](../public/game-data/shooter.schema.json), 실제 의미·교차 참조 검증은 [`src/shooter/ShooterContent.ts`](../src/shooter/ShooterContent.ts)가 담당합니다.

@@ -91,7 +91,7 @@ export class BulletHellScene extends Phaser.Scene {
     this.time.addEvent({ delay:2000, loop:true, callback:()=>this.persistHighScore() });
     const runtime = this.pendingRuntime; this.pendingRuntime = undefined;
     this.time.delayedCall(120, () => runtime ? this.restoreRuntime(runtime) : this.startStage(Math.max(0,this.config.stages.findIndex(stage=>stage.id===this.config.game.entryStage))));
-    this.time.addEvent({ delay:this.config.persistence?.autosaveIntervalMs ?? 5000, loop:true, callback:()=>this.requestAutosave() });
+    if(this.config.persistence)this.time.addEvent({ delay:this.config.persistence.autosaveIntervalMs, loop:true, callback:()=>this.requestAutosave() });
     this.events.emit('pause', false);
     this.emitState(true);
   }

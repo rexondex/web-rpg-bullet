@@ -10,8 +10,7 @@
   <main id="app">
     <header class="masthead">
       <div><span id="eyebrow" class="eyebrow"></span><h1 id="game-title"></h1><p id="game-subtitle"></p></div>
-      <button id="pause-button" type="button">P · 일시정지</button>
-      <button id="save-button" type="button">진행 저장</button>
+      <button id="pause-button" type="button" aria-label="게임 일시정지">Ⅱ <span>P</span></button>
     </header>
     <section id="game-shell" class="cabinet title-mode" aria-label="탄막 슈팅 게임">
       <div class="playfield">
@@ -32,7 +31,7 @@
       </div>
       <aside class="side-panel">
         <section class="logo-card"><span id="brand-kicker"></span><strong id="brand-title"></strong><p id="brand-caption">STARFALL BARRAGE</p></section>
-        <section class="score-card"><label data-label="highScore"></label><strong id="high-score">000000000</strong><label data-label="score"></label><strong id="score">000000000</strong></section>
+        <section class="score-card"><div class="score-primary"><label data-label="score"></label><strong id="score">000000000</strong></div><div><label data-label="highScore"></label><strong id="high-score">000000000</strong></div></section>
         <section class="resource-card"><div><label data-label="player"></label><span id="lives"></span></div><div><label data-label="bomb"></label><span id="bombs"></span></div><div><label data-label="power"></label><b id="power"></b><div class="power-meter"><i id="power-bar"></i></div></div></section>
         <section class="metric-card"><div><label data-label="graze"></label><strong id="graze">0</strong></div><div><label data-label="chain"></label><strong id="combo">—</strong></div></section>
         <section class="guide-card"><h2 id="guide-title"></h2><dl id="guide-list"></dl><p id="guide-tip"></p></section>
@@ -42,7 +41,7 @@
   <section id="title-screen" class="title-screen hidden" aria-label="게임 시작 화면">
     <div class="title-layout">
       <header><span id="title-kicker"></span><h2 id="title-heading"></h2><p id="title-description"></p></header>
-      <section class="character-section"><h3 id="select-title"></h3><div id="character-select" class="character-select"></div><button id="start-game" class="start-game" type="button"></button><button id="continue-game" class="start-game hidden" type="button">저장한 게임 계속</button><div class="document-actions"><button id="export-save" type="button">게임 JSON 내보내기</button><button id="import-save" type="button">게임 JSON 불러오기</button><input id="import-file" class="hidden" type="file" accept="application/json,.json" /></div></section>
+      <section class="character-section"><h3 id="select-title"></h3><div id="character-select" class="character-select"></div><button id="start-game" class="start-game" type="button"></button></section>
       <section class="title-guide-card"><h3 id="controls-title"></h3><dl id="title-guide"></dl></section>
       <section class="leaderboard-card"><div><h3 id="leaderboard-title"></h3><button id="clear-scores" type="button"></button></div><div id="leaderboard-list" class="leaderboard-list"></div></section>
     </div>
